@@ -1,0 +1,15 @@
+[tool.poetry]
+name = "telegram-group-stats"
+version = "0.1.0"
+description = ""
+authors = ["Maxim Kirilyuk <werserk@inbox.ru>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+telethon = "^1.38.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
