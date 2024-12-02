@@ -4,3 +4,8 @@ __pycache__/
 .idea/
 *.pyc
 .env
+
+td/
+tdlib/
+example.py
+libtdjson.so.1.8.40
