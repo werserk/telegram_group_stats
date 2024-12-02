@@ -9,6 +9,7 @@ readme = "README.md"
 python = "^3.11"
 telethon = "^1.38.1"
 loguru = "^0.7.2"
+python-dotenv = "^1.0.1"
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.10.0"

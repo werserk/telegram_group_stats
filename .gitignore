@@ -9,3 +9,4 @@ td/
 tdlib/
 example.py
 libtdjson.so.1.8.40
+libtdjson.so
