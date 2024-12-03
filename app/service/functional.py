@@ -2,8 +2,6 @@ import os
 import sys
 from ctypes import *
 
-from loguru import logger
-
 # load shared library
 tdjson_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "libtdjson.so")
 tdjson = CDLL(tdjson_path)
@@ -37,7 +35,6 @@ set_log_message_callback.argtypes = [c_int, log_message_callback_type]
 def on_log_message_callback(verbosity_level, message):
     if verbosity_level == 0:
         sys.exit("TDLib fatal error: %r" % message)
-    logger.debug(message)
 
 
 set_log_message_callback(2, on_log_message_callback)

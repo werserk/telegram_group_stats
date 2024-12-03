@@ -1,4 +1,5 @@
 import json
+import sys
 import time
 from typing import Dict
 
@@ -8,9 +9,9 @@ import app.service.functional as F
 
 
 class TDLibClient:
-    ERROR_LOG_LEVEL = 1
-    RECEIVE_LOOP_TIMEOUT = 1.0
-    AUTHORIZE_LOOP_TIMEOUT = 0.1
+    ERROR_LOG_LEVEL = 2
+    RECEIVE_LOOP_TIMEOUT = 5
+    AUTHORIZE_LOOP_TIMEOUT = 5
 
     def __init__(self, api_id: str, api_hash: str):
         self.__api_id = api_id
@@ -19,6 +20,7 @@ class TDLibClient:
         self._set_verbosity_level(TDLibClient.ERROR_LOG_LEVEL)
         self._is_authorized = False
         self._authorize()
+        time.sleep(TDLibClient.AUTHORIZE_LOOP_TIMEOUT)
 
     def _set_verbosity_level(self, level: int):
         self.execute({"@type": "setLogVerbosityLevel", "new_verbosity_level": level})
@@ -36,8 +38,15 @@ class TDLibClient:
         if event["@type"] == "updateAuthorizationState":
             self._handle_auth_state(event["authorization_state"])
         elif event["@type"] == "error":
-            logger.error(event)
-        # Handle other events as needed
+            if event["code"] == 420 and "FLOOD_WAIT" in event["message"]:
+                wait_time = int(event["message"].split('_')[-1])
+                logger.debug(f"Необходимо подождать {wait_time} секунд из-за ограничения запросов.")
+                if input("Ожидать? [y/n]") == "y":
+                    time.sleep(wait_time)
+                else:
+                    sys.exit()
+            else:
+                logger.error(f"Error: {event}")
 
     def _handle_auth_state(self, auth_state: Dict):
         auth_type = auth_state["@type"]
