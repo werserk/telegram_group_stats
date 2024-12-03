@@ -9,15 +9,19 @@ import app.service.functional as F
 
 class TDLibClient:
     def __init__(self, api_id: str, api_hash: str):
-        self.client_id = F.create_client_id()
         self.__api_id = api_id
         self.__api_hash = api_hash
-        self.is_authorized = False
+        self._client_id = F.create_client_id()
+        self._set_verbosity_level(1)
+        self._is_authorized = False
         self._authorize()
+
+    def _set_verbosity_level(self, level: int):
+        self.execute({"@type": "setLogVerbosityLevel", "new_verbosity_level": level})
 
     def _authorize(self):
         self.send({"@type": "getAuthorizationState"})
-        while not self.is_authorized:
+        while not self._is_authorized:
             event = self.receive()
             if event:
                 self._handle_event(event)
@@ -36,23 +40,21 @@ class TDLibClient:
         if auth_type == "authorizationStateWaitTdlibParameters":
             self.send({
                 "@type": "setTdlibParameters",
-                "parameters": {
-                    "use_test_dc": False,
-                    "database_directory": "tdlib",
-                    "files_directory": "tdlib",
-                    "use_file_database": False,
-                    "use_chat_info_database": False,
-                    "use_message_database": False,
-                    "use_secret_chats": False,
-                    "api_id": self.__api_id,
-                    "api_hash": self.__api_hash,
-                    "system_language_code": "en",
-                    "device_model": "Desktop",
-                    "system_version": "Unknown",
-                    "application_version": "1.0",
-                    "enable_storage_optimizer": True,
-                    "ignore_file_names": False
-                }
+                "use_test_dc": False,
+                "database_directory": "tdlib",
+                "files_directory": "tdlib",
+                "use_file_database": False,
+                "use_chat_info_database": False,
+                "use_message_database": False,
+                "use_secret_chats": False,
+                "api_id": self.__api_id,
+                "api_hash": self.__api_hash,
+                "system_language_code": "en",
+                "device_model": "Desktop",
+                "system_version": "Unknown",
+                "application_version": "1.0",
+                "enable_storage_optimizer": True,
+                "ignore_file_names": False
             })
         elif auth_type == "authorizationStateWaitEncryptionKey":
             self.send({
@@ -78,11 +80,11 @@ class TDLibClient:
                 "password": password
             })
         elif auth_type == "authorizationStateReady":
-            self.is_authorized = True
+            self._is_authorized = True
             logger.info("Authorization completed successfully!")
         elif auth_type == "authorizationStateClosed":
             logger.info("Authorization state closed")
-            self.is_authorized = False
+            self._is_authorized = False
         else:
             logger.error(f"Unhandled authorization state: {auth_state}")
 
@@ -103,4 +105,4 @@ class TDLibClient:
 
     def send(self, query: Dict) -> None:
         query_json = json.dumps(query).encode("utf-8")
-        F.send(self.client_id, query_json)
+        F.send(self._client_id, query_json)
