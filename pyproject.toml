@@ -4,8 +4,7 @@ version = "0.1.0"
 description = "A tool for analyzing Telegram group statistics."
 authors = ["Maxim Kirilyuk <werserk@inbox.ru>"]
 readme = "README.md"
-license = "MIT"  # или другой выбранный тип лицензии
-homepage = "https://github.com/werserk/telegram-group-stats"  # при наличии репозитория
+homepage = "https://github.com/werserk/telegram_group_stats"
 
 [tool.poetry.dependencies]
 python = ">=3.11"
@@ -27,14 +26,16 @@ build-backend = "poetry.core.masonry.api"
 [tool.black]
 line-length = 120
 target-version = ["py311"]
-exclude = [
-    "build/",
-    "dist/",
-    ".venv/",
-    "venv/",
-    "td/",
-    "tdlib/",
-]
+exclude = '''
+/(
+    build
+  | dist
+  | \.venv
+  | venv
+  | td
+  | tdlib
+)/
+'''
 
 [tool.isort]
 profile = "black"
@@ -42,12 +43,6 @@ line_length = 120
 multi_line_output = 3
 include_trailing_comma = true
 skip = ["venv", ".venv", "build", "dist", "td", "tdlib"]
-
-[flake8]
-max-line-length = 120
-ignore = ["E203", "E266", "E501", "W503", "F401", "F841"]
-select = ["B", "C", "E", "F", "W", "T4", "B9"]
-exclude = ["build", "dist", "venv", ".venv"]
 
 [tool.mypy]
 python_version = "3.11"

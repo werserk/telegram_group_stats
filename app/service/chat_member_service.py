@@ -1,6 +1,8 @@
 import time
-from typing import Dict, Optional, List, Any, Union, Callable
+from typing import Any, Callable, Dict, List, Optional, Union
+
 from loguru import logger
+
 from app.service.client import TDLibClient
 
 
@@ -24,19 +26,14 @@ class ChatMemberService:
 
         :return: The user ID of the current authenticated user, or None if failed.
         """
-        event = self._send_and_wait_for_response(
-            {"@type": "getMe"},
-            success_condition="user"
-        )
+        event = self._send_and_wait_for_response({"@type": "getMe"}, success_condition="user")
         if event is None:
             logger.error("Failed to retrieve current user info.")
             return None
         return event.get("id")
 
     def _send_and_wait_for_response(
-            self,
-            request_data: Dict[str, Any],
-            success_condition: Union[str, List[str], Callable[[Dict[str, Any]], bool]]
+        self, request_data: Dict[str, Any], success_condition: Union[str, List[str], Callable[[Dict[str, Any]], bool]]
     ) -> Optional[Dict[str, Any]]:
         """
         Sends a request and waits for a response that meets the success_condition.
@@ -45,12 +42,18 @@ class ChatMemberService:
         :param success_condition: Can be a string (@type), a list of @types, or a callable that checks the event.
         :return: The event dictionary if the condition is met, None otherwise.
         """
+        condition: Callable[[Dict[str, Any]], bool]
+
         if isinstance(success_condition, str):
+
             def condition(event: Dict[str, Any]) -> bool:
                 return event.get("@type") == success_condition
+
         elif isinstance(success_condition, list):
+
             def condition(event: Dict[str, Any]) -> bool:
                 return event.get("@type") in success_condition
+
         elif callable(success_condition):
             condition = success_condition
         else:
@@ -192,10 +195,7 @@ class ChatMemberService:
                     continue
 
                 chat_ids = common_groups_response.get("chat_ids", [])
-                result_item = {
-                    "user_id": user_id,
-                    "count_of_common_chats": len(chat_ids)
-                }
+                result_item = {"user_id": user_id, "count_of_common_chats": len(chat_ids)}
                 results.append(result_item)
 
         return results

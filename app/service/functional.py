@@ -1,12 +1,12 @@
 import os
 import sys
-from ctypes import *
+from ctypes import CDLL, CFUNCTYPE, c_char_p, c_double, c_int
 
-# load shared library
+# Load shared library
 tdjson_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "libtdjson.so")
 tdjson = CDLL(tdjson_path)
 
-# load TDLib functions from shared library
+# Load TDLib functions from shared library
 create_client_id = tdjson.td_create_client_id
 create_client_id.restype = c_int
 create_client_id.argtypes = []
@@ -30,11 +30,11 @@ set_log_message_callback.restype = None
 set_log_message_callback.argtypes = [c_int, log_message_callback_type]
 
 
-# initialize TDLib log with desired parameters
+# Initialize TDLib log with desired parameters
 @log_message_callback_type
 def on_log_message_callback(verbosity_level, message):
     if verbosity_level == 0:
-        sys.exit("TDLib fatal error: %r" % message)
+        sys.exit(f"TDLib fatal error: {message!r}")
 
 
-set_log_message_callback(2, on_log_message_callback)
+set_log_message_callback(os.getenv("TDLIB_LOGGING_LEVEL"), on_log_message_callback)
