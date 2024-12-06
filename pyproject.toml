@@ -10,6 +10,7 @@ homepage = "https://github.com/werserk/telegram_group_stats"
 python = ">=3.11"
 loguru = "^0.7.2"
 python-dotenv = "^1.0.1"
+streamlit = "^1.40.2"
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.10.0"
@@ -17,7 +18,6 @@ pre-commit = "^4.0.1"
 isort = "^5.12.0"
 flake8 = "^6.1.0"
 mypy = "^1.5.1"
-safety = "^2.4.0"
 
 [build-system]
 requires = ["poetry-core"]

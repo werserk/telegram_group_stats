@@ -7,7 +7,7 @@ from typing import Dict
 from dotenv import load_dotenv
 from loguru import logger
 
-import app.service.functional as F
+import app.telegram.functional as F
 
 load_dotenv()
 

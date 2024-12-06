@@ -21,5 +21,5 @@ cd ../../ && cp ./td/build/libtdjson.so.1.8.40 ./libtdjson.so
 Copy .env.example file and fill it:
 
 ```bash
-cp .env.example .env
+cp example.env .env
 ```

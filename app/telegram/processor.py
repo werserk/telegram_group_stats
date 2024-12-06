@@ -3,7 +3,7 @@ from typing import Any, Callable, Dict, List, Optional, Union
 
 from loguru import logger
 
-from app.service.client import TDLibClient
+from app.telegram.client import TDLibClient
 
 
 class ChatMemberService:

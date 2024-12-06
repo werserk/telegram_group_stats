@@ -10,8 +10,8 @@ RUN poetry config virtualenvs.create false && poetry install --no-interaction --
 
 COPY . /app
 
-EXPOSE 8000
+EXPOSE 8501
 
 ENV PYTHONUNBUFFERED=1
 
-CMD ["poetry", "run", "python", "main.py"]
+CMD ["streamlit", "run", "main.py"]
