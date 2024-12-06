@@ -11,3 +11,25 @@ repos:
     hooks:
       - id: black
         language_version: python3
+  - repo: https://github.com/pyupio/safety
+    rev: 1.10.3
+    hooks:
+      - id: safety
+        name: safety check
+        args: [ "--full-report" ]
+  - repo: https://github.com/pycqa/isort
+    rev: 5.12.0
+    hooks:
+      - id: isort
+        name: isort (python)
+        language_version: python3
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.5.1
+    hooks:
+      - id: mypy
+        additional_dependencies: [ types-setuptools, types-requests ]
+        language_version: python3
+  - repo: https://github.com/pycqa/flake8
+    rev: 6.1.0
+    hooks:
+      - id: flake8
