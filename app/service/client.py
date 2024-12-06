@@ -1,15 +1,19 @@
 import json
+import os
 import sys
 import time
 from typing import Dict
 
+from dotenv import load_dotenv
 from loguru import logger
 
 import app.service.functional as F
 
+load_dotenv()
+
 
 class TDLibClient:
-    ERROR_LOG_LEVEL = 2
+    TDLIB_LOGGING_LEVEL = int(os.getenv("TDLIB_LOGGING_LEVEL", 2))
     RECEIVE_LOOP_TIMEOUT = 5
     AUTHORIZE_LOOP_TIMEOUT = 5
 
@@ -17,7 +21,7 @@ class TDLibClient:
         self.__api_id = api_id
         self.__api_hash = api_hash
         self._client_id = F.create_client_id()
-        self._set_verbosity_level(TDLibClient.ERROR_LOG_LEVEL)
+        self._set_verbosity_level(TDLibClient.TDLIB_LOGGING_LEVEL)
         self._is_authorized = False
         self._authorize()
         time.sleep(TDLibClient.AUTHORIZE_LOOP_TIMEOUT)
