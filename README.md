@@ -6,7 +6,7 @@ Prepare your system and clone tdlib:
 
 ```bash
 sudo apt-get update && sudo apt-get upgrade && \
-sudo apt-get install make git zlib1g-dev libssl-dev gperf php-cli cmake clang-18 libc++-18-dev libc++abi-18-dev && \
+sudo apt-get install make git zlib1g-dev libssl-dev gperf cmake g++ && \
 git clone https://github.com/tdlib/td.git
 ```
 

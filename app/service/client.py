@@ -39,7 +39,7 @@ class TDLibClient:
             self._handle_auth_state(event["authorization_state"])
         elif event["@type"] == "error":
             if event["code"] == 420 and "FLOOD_WAIT" in event["message"]:
-                wait_time = int(event["message"].split('_')[-1])
+                wait_time = int(event["message"].split("_")[-1])
                 logger.debug(f"Необходимо подождать {wait_time} секунд из-за ограничения запросов.")
                 if input("Ожидать? [y/n]") == "y":
                     time.sleep(wait_time)

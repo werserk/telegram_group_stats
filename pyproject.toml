@@ -6,8 +6,7 @@ authors = ["Maxim Kirilyuk <werserk@inbox.ru>"]
 readme = "README.md"
 
 [tool.poetry.dependencies]
-python = "^3.11"
-telethon = "^1.38.1"
+python = ">=3.11"
 loguru = "^0.7.2"
 python-dotenv = "^1.0.1"
 
