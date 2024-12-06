@@ -4,8 +4,8 @@ import os
 
 from dotenv import load_dotenv
 
-from app.service.chat_member_service import ChatMemberService
 from app.service.client import TDLibClient
+from app.service.processor import ChatMemberService
 
 load_dotenv()
 
