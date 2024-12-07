@@ -15,13 +15,14 @@ def main():
     tdlib_client = TDLibClient(api_id=api_id, api_hash=api_hash)
     chat_member_service = ChatMemberService(tdlib_client)
 
-    chat_list = chat_member_service.get_chats()
-    chat_example = chat_list[0]
-    print(f"Chat example: {chat_example}")
-    print(chat_list[:50])
+    chat_id = chat_member_service.get_chat_id_by_username("@test_group_chat_werserk")
+    print(chat_id)
 
-    stats = chat_member_service.get_users_common_chats_count_for_chat(chat_example["id"])
-    print(stats)
+    my_id = chat_member_service.get_my_user_id()
+    print(my_id)
+
+    member_id = chat_member_service.get_user_id_by_username("@sofya_salyaeva")
+    print(member_id)
 
 
 if __name__ == "__main__":

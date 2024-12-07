@@ -18,9 +18,9 @@ class ChatMemberService:
         :param td_client: An instance of TDLibClient for sending and receiving requests.
         """
         self.td_client = td_client
-        self.__my_user_id = self._get_my_user_id()
+        self.__my_user_id = self.get_my_user_id()
 
-    def _get_my_user_id(self) -> Optional[int]:
+    def get_my_user_id(self) -> Optional[int]:
         """
         Retrieve the current user's ID and store it for future checks.
 
@@ -29,6 +29,21 @@ class ChatMemberService:
         event = self._send_and_wait_for_response({"@type": "getMe"}, success_condition="user")
         if event is None:
             logger.error("Failed to retrieve current user info.")
+            return None
+        return event.get("id")
+
+    def get_user_id_by_username(self, username: str) -> Optional[int]:
+        """
+        Retrieve the user ID of a given username.
+
+        :param username: The username to retrieve the user ID for.
+        :return: The user ID of the user with the given username, or None if not found.
+        """
+        event = self._send_and_wait_for_response(
+            {"@type": "searchPublicChat", "username": username}, success_condition="chat"
+        )
+        if event is None:
+            logger.error(f"Failed to retrieve user ID for username: {username}")
             return None
         return event.get("id")
 

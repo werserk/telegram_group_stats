@@ -7,20 +7,17 @@ a convenient Streamlit interface.
 
 ## Overview
 
-### Current features
-
-* **Basic group chat listing:** Fetches and displays all basic groups you are a member of.
-* **Chat member retrieval:** Retrieves all users in a selected group.
-* **Common group analysis:** Calculates how many groups each user shares with you.
-* **Streamlit UI:** Provides an interactive interface to search groups and run analysis.
-
-### Future plans
-
-* **Support for Supergroups/Channels:** Extend the logic to handle supergroups and channel members.
-* **Caching and optimization:** Improve performance by caching responses and minimizing TDLib calls.
-* **Extended analytics:** Add more metrics (e.g., message counts, user activity levels, common interests).
-* **Build graph visualization:** Display group relationships in a graph.
-* **Authentication improvements:** Authorize using OAuth method.
+- [x] **Connection to Telegram:** Connects to Telegram and authorizes a user session.
+- [x] **Basic group chat listing:** Fetches and displays all basic groups you are a member of.
+- [x] **Chat member retrieval:** Retrieves all users in a selected group.
+- [x] **Common group analysis:** Calculates how many groups each user shares with you.
+- [x] **Streamlit UI:** Provides an interactive interface to search groups and run analysis.
+- [x] **Write basic tests:** Write basic tests to ensure the application works as expected.
+- [ ] **Support for Supergroups/Channels:** Extend the logic to handle supergroups and channel members.
+- [ ] **Extended analytics:** Add more metrics (e.g., message counts, user activity levels, common interests).
+- [ ] **Build graph visualization:** Display group relationships in a graph.
+- [ ] **Authentication improvements:** Authorize using OAuth method.
+- [ ] **Improved UI:** Add more features and improve the interface.
 
 ## Tech overview
 **Core Functionality:**
@@ -95,3 +92,23 @@ cd td && mkdir build && cd build && \
 cmake -DCMAKE_BUILD_TYPE=Release .. && cmake --build . && \
 cd ../../ && cp ./td/build/libtdjson.so.1.8.40 ./libtdjson.so
 ```
+
+## Tests
+
+Detailed description will be added in the future.
+
+You can view the tests here:
+```
+tests/
+├── test_client.py
+└── test_processor.py
+```
+
+Run:
+```bash
+pytest
+```
+
+## License
+
+This project is licensed under the MIT License.

@@ -48,3 +48,4 @@ skip = ["venv", ".venv", "build", "dist", "td", "tdlib"]
 python_version = "3.11"
 ignore_missing_imports = true
 strict = false
+exclude = ["venv", ".venv", "build", "dist", "td", "tdlib", "tests"]
