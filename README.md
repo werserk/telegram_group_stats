@@ -1,6 +1,6 @@
 # Telegram Group Stats
 
-This project provides a streamlined approach to extracting and analyzing information about Telegram groups using TDLib.
+This project provides a streamlined approach to extracting and analyzing information about Telegram groups using TDLib (c++ compiled library).
 
 It allows you to retrieve and analyze user membership data, find common groups between users, and run analytics through
 a convenient Streamlit interface.
