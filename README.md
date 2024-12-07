@@ -87,7 +87,6 @@ API_ID=your_api_id_here
 API_HASH=your_api_hash_here
 DATABASE_DIR=tdlib
 TDLIB_LOGGING_LEVEL=2
-TELEGRAM_BOT_TOKEN=your_bot_token_here
 ```
 
 Then use `docker-compose`:
