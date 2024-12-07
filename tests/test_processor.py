@@ -3,6 +3,8 @@ import pytest
 from app.telegram.processor import ChatMemberService
 
 """
+BE AWARE: THESE TESTS ARE NOT SUITABLE FOR EVERY USER. EVERY USER MUST HAVE A TEST USER ACCOUNT.
+
 Constants used for testing. These represent various user IDs, chat IDs, and related data:
 - SELF_USER_ID: the ID of the current (authorized) user.
 - USER_ID_1, USER_ID_2: different test user IDs.
