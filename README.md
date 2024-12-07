@@ -1,3 +1,5 @@
+![telegram.png](assets/telegram.png)
+
 # Telegram Group Stats
 
 This project provides a streamlined approach to extracting and analyzing information about Telegram groups using TDLib (
@@ -25,6 +27,8 @@ a convenient Streamlit interface.
 - [ ] **Build graph visualization:** Display group relationships in a graph.
 - [ ] **Authentication improvements:** Authorize using OAuth method.
 - [ ] **Improved UI:** Add more features and improve the interface.
+
+![demo.png](assets/demo.png)
 
 ## Tech overview
 
