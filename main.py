@@ -53,9 +53,15 @@ def main():
             if stats is None:
                 st.error("Failed to get stats.")
                 return
-            sorted_stats = sorted(stats, key=lambda x: x["count_of_common_chats"], reverse=True)
+            sorted_stats = sorted(stats, key=lambda x: x["count"], reverse=True)
             st.success("Analysis completed!")
-            st.dataframe(sorted_stats)
+            st.dataframe(
+                sorted_stats,
+                column_config={
+                    "name": "Name",
+                    "count": "Count",
+                },
+            )
 
 
 if __name__ == "__main__":

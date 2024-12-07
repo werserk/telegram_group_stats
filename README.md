@@ -1,9 +1,16 @@
 # Telegram Group Stats
 
-This project provides a streamlined approach to extracting and analyzing information about Telegram groups using TDLib (c++ compiled library).
+This project provides a streamlined approach to extracting and analyzing information about Telegram groups using TDLib (
+c++ compiled library).
 
 It allows you to retrieve and analyze user membership data, find common groups between users, and run analytics through
 a convenient Streamlit interface.
+
+## Links
+
+- [GitHub](https://github.com/werserk/telegram_group_stats)
+- [VideoDemo](https://drive.google.com/file/d/1bnfRz6lTo-szwSJitRH16emSjPoy-fiH/view?usp=sharing)
+- tg: [@werserk](https://t.me/werserk)
 
 ## Overview
 
@@ -20,6 +27,7 @@ a convenient Streamlit interface.
 - [ ] **Improved UI:** Add more features and improve the interface.
 
 ## Tech overview
+
 **Core Functionality:**
 
 - Connect to Telegram through TDLib and authorize a user session.
@@ -36,6 +44,27 @@ a convenient Streamlit interface.
   other users.
 - **Streamlit App (main.py):** Offers an interface to select groups, run analysis, and view results.
 
+**Structure:**
+
+```
+.
+├── app
+│   ├── __init__.py
+│   └── telegram
+│       ├── client.py
+│       ├── functional.py
+│       ├── __init__.py
+│       └── processor.py
+├── docker-compose.yaml
+├── Dockerfile
+├── example.env
+├── libtdjson.so
+├── main.py
+├── poetry.lock
+├── pyproject.toml
+├── README.md
+└── test.py
+```
 
 ## Inference
 
@@ -56,7 +85,6 @@ DATABASE_DIR=tdlib
 TDLIB_LOGGING_LEVEL=2
 TELEGRAM_BOT_TOKEN=your_bot_token_here
 ```
-
 
 Then use `docker-compose`:
 
@@ -93,11 +121,21 @@ cmake -DCMAKE_BUILD_TYPE=Release .. && cmake --build . && \
 cd ../../ && cp ./td/build/libtdjson.so.1.8.40 ./libtdjson.so
 ```
 
+## Linters and friends
+
+View `pyproject.toml` for details.
+
+* black
+* flake8 (TODO: add flake8-cognitive-complexity)
+* isort
+* mypy
+
 ## Tests
 
 Detailed description will be added in the future.
 
 You can view the tests here:
+
 ```
 tests/
 ├── test_client.py
@@ -105,6 +143,7 @@ tests/
 ```
 
 Run:
+
 ```bash
 pytest
 ```
