@@ -8,7 +8,7 @@ from app.web.graph import GraphVisualizer
 
 
 class AnalyticsPage:
-    def __init__(self, chat_member_service: ChatMemberService):
+    def __init__(self, chat_member_service: ChatMemberService) -> None:
         self.chat_member_service = chat_member_service
 
         @st.cache_data
@@ -18,7 +18,7 @@ class AnalyticsPage:
         self._load_chats = _load_chats
         self._stats: List[UserInfo] = []
 
-    def show(self):
+    def show(self) -> None:
         st.title("Telegram Group Stats")
         chats = self._load_chats()
         if not chats:
@@ -34,15 +34,20 @@ class AnalyticsPage:
             options=[chat["name"] for chat in chats],
         )
         selected_chat = next((c for c in chats if c["name"] == selected_chat_name), None)
-
+        if not selected_chat:
+            st.warning("No groups match the search query.")
+            return
         with st.spinner("Retrieving chat members..."):
             members = self.chat_member_service.get_chat_members(selected_chat["id"])
         if not members:
-            st.warning("No members in this chat or failed to retrieve.")
+            st.warning("Don't have permission to members of this chat. Can't analyze.")
             return
 
         if st.button("Analyze chat"):
             self.analyze_chat(selected_chat)
+
+        if not self._stats:
+            return
 
         with st.expander("Members", expanded=True):
             self.visualize_chat_members(self._stats)
@@ -62,8 +67,6 @@ class AnalyticsPage:
             for index, row in enumerate(rows):
                 row["ID"] = str(index + 1)
             st.dataframe(rows, column_order=["ID", "Username", "Name", "Count of Common Chats"])
-        else:
-            st.warning("No relevant members or no access.")
 
     def analyze_chat(self, chat: Dict[str, Any]) -> None:
         progress_bar = st.progress(0, text="Analyzing chat members...")
@@ -83,7 +86,7 @@ class AnalyticsPage:
         self._stats = result
         st.success("Chat members analyzed.")
 
-    def visualize_graph(self, stats: List[UserInfo]):
+    def visualize_graph(self, stats: List[UserInfo]) -> None:
         with st.spinner("Generating graph..."):
             graph_visualizer = GraphVisualizer(stats, self.chat_member_service)
             graph_path = graph_visualizer.save_and_return_graph_html()

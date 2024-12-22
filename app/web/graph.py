@@ -28,7 +28,7 @@ from app.telegram.service import ChatMemberService, UserInfo
 class GraphVisualizer:
     """Builds and saves an interactive PyVis graph of user-group relationships."""
 
-    def __init__(self, stats: List[UserInfo], service: ChatMemberService):
+    def __init__(self, stats: List[UserInfo], service: ChatMemberService) -> None:
         self.stats = stats
         self.service = service
 
