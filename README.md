@@ -23,10 +23,9 @@ a convenient Streamlit interface.
 - [x] **Streamlit UI:** Provides an interactive interface to search groups and run analysis.
 - [x] **Write basic tests:** Write basic tests to ensure the application works as expected.
 - [x] **Support for Supergroups/Channels:** Extend the logic to handle supergroups and channel members.
-- [ ] **Extended analytics:** Add more metrics (e.g., message counts, user activity levels, common interests).
-- [ ] **Build graph visualization:** Display group relationships in a graph.
+- [x] **Build graph visualization:** Display group relationships in a graph.
 - [x] **Authentication improvements:** Authorize using UI.
-- [ ] **Improved UI:** Add more features and improve the interface.
+- [x] **Improved UI:** Add more features and improve the interface.
 
 ![demo.png](assets/demo.png)
 
