@@ -1,6 +1,6 @@
 import pytest
 
-from app.telegram.processor import ChatMemberService
+from app.telegram.service import ChatMemberService
 
 """
 BE AWARE: THESE TESTS ARE NOT SUITABLE FOR EVERY USER. EVERY USER MUST HAVE A TEST USER ACCOUNT.

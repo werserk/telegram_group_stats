@@ -1,6 +1,6 @@
 import streamlit as st
 
-from app.telegram.processor import ChatMemberService
+from app.telegram.service import ChatMemberService
 
 
 class AnalyticsPage:

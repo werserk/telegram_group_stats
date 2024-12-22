@@ -4,7 +4,7 @@ import streamlit as st
 from dotenv import load_dotenv
 
 from app.telegram.client import TDLibClient
-from app.telegram.processor import ChatMemberService
+from app.telegram.service import ChatMemberService
 from app.web.analytics import AnalyticsPage
 from app.web.auth import AuthorizePage
 
