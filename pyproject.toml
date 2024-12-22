@@ -7,7 +7,7 @@ readme = "README.md"
 homepage = "https://github.com/werserk/telegram_group_stats"
 
 [tool.poetry.dependencies]
-python = ">=3.11"
+python = ">=3.11,<4.0"
 loguru = "^0.7.2"
 python-dotenv = "^1.0.1"
 streamlit = "^1.40.2"
