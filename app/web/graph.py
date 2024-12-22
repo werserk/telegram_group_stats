@@ -1,5 +1,7 @@
 # Filepath: app/web/graph.py
 
+import base64
+
 from loguru import logger
 from pyvis.network import Network
 
@@ -43,13 +45,37 @@ class GraphVisualizer:
             name = user["name"]
             username = user["username"]
 
-            # Добавляем узел пользователя
+            # Получаем аватарку пользователя
+            photo_bytes = self.service.get_user_profile_photo(user_id)
+            if photo_bytes is not None:
+                photo_base64 = base64.b64encode(photo_bytes).decode()
+                image_data = f"data:image/jpeg;base64,{photo_base64}"
+            else:
+                # Использовать дефолтное изображение
+                image_data = ""
+
+            # Добавляем узел пользователя с изображением
             net.add_node(
                 user_id,
-                label=f"{name} ({username})",
-                color="blue",
-                shape="dot",
-                size=15 + user.get("count", 0) * 2,  # Можно увеличить размер на основе количества
+                label=f"{name}\n{username}",
+                color={
+                    "background": "white",  # Цвет фона
+                    "border": "black",  # Цвет границы
+                    "highlight": {
+                        "background": "orange",
+                        "border": "orange",
+                        "borderWidth": 2,
+                    },
+                },
+                shape="circularImage",
+                image=image_data,
+                size=60 + user.get("count", 0) * 2,
+                font={
+                    "size": 40 + user.get("count", 0) * 2,  # Размер шрифта
+                    "face": "Tahoma",  # Тип шрифта
+                    "color": "black",  # Цвет шрифта
+                    "strokeWidth": 0,  # Толщина обводки текста
+                },
             )
             user_nodes[user_id] = user
 
@@ -59,21 +85,44 @@ class GraphVisualizer:
                     chat_info = self.service.get_chat_info_by_id(group_id)
                     if chat_info:
                         group_name = chat_info.get("title", f"Group {group_id}")
+                        # Получаем аватарку группы
+                        group_photo_bytes = self.service.get_chat_photo(chat_info)
+                        if group_photo_bytes:
+                            group_photo_base64 = base64.b64encode(group_photo_bytes).decode()
+                            group_image_data = f"data:image/jpeg;base64,{group_photo_base64}"
+                        else:
+                            group_image_data = ""
                     else:
                         group_name = f"Group {group_id}"
+                        group_image_data = ""
                     # Размер группы пропорционален количеству соединений
-                    group_size = 20 + group_connection_counts.get(group_id, 0)
-                    # Добавляем узел группы
+                    group_size = 60 + group_connection_counts.get(group_id, 0) * 3
+                    # Добавляем узел группы с изображением
                     net.add_node(
                         group_id,
                         label=group_name,
                         color="green",
-                        shape="square",
+                        shape="circularImage",
+                        image=group_image_data,
                         size=group_size,
+                        font={
+                            "size": 60 + group_connection_counts.get(group_id, 0) * 2,  # Размер шрифта
+                            "face": "Tahoma",  # Тип шрифта
+                            "color": "black",  # Цвет шрифта
+                            "strokeWidth": 0,  # Толщина обводки текста
+                        },
                     )
                     group_nodes[group_id] = group_name
                 # Добавляем связь между пользователем и группой
-                net.add_edge(user_id, group_id, color="gray", width=1)
+                net.add_edge(
+                    user_id,
+                    group_id,
+                    color={
+                        "color": "gray",  # Основной цвет ребра
+                        "highlight": "orange",  # Цвет подсветки ребра
+                    },
+                    width=2,
+                )
 
         return net
 
@@ -84,11 +133,7 @@ class GraphVisualizer:
         :param output_path: Путь для сохранения HTML-файла.
         :return: Путь к сохранённому HTML-файлу.
         """
-        try:
-            net = self.create_pyvis_graph()
-            net.save_graph(output_path)
-            logger.info(f"Граф успешно сохранён в {output_path}")
-            return output_path
-        except Exception as e:
-            logger.error(f"Ошибка при сохранении графа: {e}")
-            return None
+        net = self.create_pyvis_graph()
+        net.save_graph(output_path)
+        logger.info(f"Граф успешно сохранён в {output_path}")
+        return output_path

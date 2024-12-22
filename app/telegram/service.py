@@ -1,9 +1,14 @@
+# Filepath: app/telegram/service.py
+
+import logging
 import time
 from typing import Any, Callable, Dict, List, Optional, Union
 
 from loguru import logger
 
 from app.telegram.client import TDLibClient
+
+logging.basicConfig(level=logging.INFO)
 
 
 class ChatMemberService:
@@ -251,21 +256,25 @@ class ChatMemberService:
         self, chat_id: int, progress_callback: Optional[Callable[[int, int], None]] = None
     ) -> Optional[List[Dict[str, Any]]]:
         """
-        Для каждого участника чата находит количество общих групп и сохраняет сами группы.
+        For each user in the specified chat, find how many common group chats are shared.
+        If the user_id is the same as our own ID, skip or handle accordingly.
 
-        :param chat_id: ID группового чата.
-        :param progress_callback: Опциональный колбэк для обновления прогресса.
-        :return: Список словарей с информацией о пользователях и общих группах.
+        :param chat_id: The ID of the group chat.
+        :param progress_callback: An optional callback function that will be called periodically during the analysis.
+        :return: A list of dictionaries of the form {"user_id": int, "count_of_common_chats": int}, or None on failure.
         """
         members = self.get_chat_members(chat_id)
         if members is None:
-            logger.error("Не удалось получить участников чата.")
+            logger.error("Failed to get chat members.")
             return None
 
         results = []
 
-        member_index = 1
         for member in members:
+            if progress_callback is not None:
+                member_index = members.index(member) + 1
+                progress_callback(member_index, len(members))
+
             member_id = member.get("member_id", {})
             if member_id.get("@type") == "messageSenderUser":
                 user_id = member_id.get("user_id")
@@ -275,13 +284,9 @@ class ChatMemberService:
                 if user_id == self.__my_user_id:
                     continue
 
-                if progress_callback is not None:
-                    progress_callback(member_index, len(members))
-                    member_index += 1
-
                 common_groups_response = self.get_common_groups_with_user(user_id)
                 if common_groups_response is None:
-                    logger.error(f"Не удалось получить общие группы для user_id: {user_id}")
+                    logger.error(f"Failed to get common groups for user_id: {user_id}")
                     continue
 
                 chat_ids = common_groups_response.get("chat_ids", [])
@@ -294,3 +299,54 @@ class ChatMemberService:
                 }
                 results.append(result_item)
         return results
+
+    def get_user_profile_photo(self, user_id: int) -> Optional[bytes]:
+        """
+        Retrieves the profile photo of a user.
+
+        :param user_id: The ID of the user.
+        :return: The binary data of the profile photo, or None if not found.
+        """
+        user_data = self._send_and_wait_for_response({"@type": "getUser", "user_id": user_id}, success_condition="user")
+        if user_data is None:
+            return None
+        profile_photo = user_data.get("profile_photo", {})
+        if not profile_photo:
+            return None
+
+        file_id = profile_photo.get("small", {}).get("id", None)
+        if file_id is None:
+            return None
+        return self.download_file(file_id)
+
+    def get_chat_photo(self, chat_info: Dict[str, Any]) -> Optional[bytes]:
+        """
+        Retrieves the photo of a chat (group or supergroup).
+
+        :param chat_info: The chat info.
+        :return: The binary data of the chat photo, or None if not found.
+        """
+        if not chat_info:
+            return None
+
+        photo = chat_info.get("photo")
+        if not photo:
+            return None
+
+        file_id = photo.get("small", {}).get("id", None)
+        if file_id is None:
+            return None
+        return self.download_file(file_id)
+
+    def download_file(self, file_id: str) -> Optional[bytes]:
+        file_response = self._send_and_wait_for_response(
+            {"@type": "downloadFile", "file_id": file_id, "priority": 1}, success_condition="file"
+        )
+        if file_response and file_response.get("local", {}).get("path"):
+            local_path = file_response["local"]["path"]
+            try:
+                with open(local_path, "rb") as f:
+                    return f.read()
+            except Exception as e:
+                logger.error(f"Failed to read chat photo file: {e}")
+        return None
