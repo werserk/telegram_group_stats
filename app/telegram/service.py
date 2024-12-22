@@ -251,25 +251,21 @@ class ChatMemberService:
         self, chat_id: int, progress_callback: Optional[Callable[[int, int], None]] = None
     ) -> Optional[List[Dict[str, Any]]]:
         """
-        For each user in the specified chat, find how many common group chats are shared.
-        If the user_id is the same as our own ID, skip or handle accordingly.
+        Для каждого участника чата находит количество общих групп и сохраняет сами группы.
 
-        :param chat_id: The ID of the group chat.
-        :param progress_callback: An optional callback function that will be called periodically during the analysis.
-        :return: A list of dictionaries of the form {"user_id": int, "count_of_common_chats": int}, or None on failure.
+        :param chat_id: ID группового чата.
+        :param progress_callback: Опциональный колбэк для обновления прогресса.
+        :return: Список словарей с информацией о пользователях и общих группах.
         """
         members = self.get_chat_members(chat_id)
         if members is None:
-            logger.error("Failed to get chat members.")
+            logger.error("Не удалось получить участников чата.")
             return None
 
         results = []
 
+        member_index = 1
         for member in members:
-            if progress_callback is not None:
-                member_index = members.index(member) + 1
-                progress_callback(member_index, len(members))
-
             member_id = member.get("member_id", {})
             if member_id.get("@type") == "messageSenderUser":
                 user_id = member_id.get("user_id")
@@ -279,16 +275,22 @@ class ChatMemberService:
                 if user_id == self.__my_user_id:
                     continue
 
+                if progress_callback is not None:
+                    progress_callback(member_index, len(members))
+                    member_index += 1
+
                 common_groups_response = self.get_common_groups_with_user(user_id)
                 if common_groups_response is None:
-                    logger.error(f"Failed to get common groups for user_id: {user_id}")
+                    logger.error(f"Не удалось получить общие группы для user_id: {user_id}")
                     continue
 
                 chat_ids = common_groups_response.get("chat_ids", [])
                 result_item = {
+                    "user_id": user_id,  # Добавлено для удобства
                     "username": self.get_tag_by_user_id(user_id),
                     "name": self.get_name_by_user_id(user_id),
                     "count": len(chat_ids),
+                    "common_group_ids": chat_ids,  # Сохраняем сами группы
                 }
                 results.append(result_item)
         return results

@@ -11,6 +11,7 @@ python = ">=3.11,<4.0"
 loguru = "^0.7.2"
 python-dotenv = "^1.0.1"
 streamlit = "^1.40.2"
+pyvis = "^0.3.2"
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.10.0"

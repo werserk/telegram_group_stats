@@ -1,6 +1,12 @@
+# Filepath: app/web/analytics.py
+
+import os
+from typing import Any, Dict, List
+
 import streamlit as st
 
 from app.telegram.service import ChatMemberService
+from app.web.graph import GraphVisualizer  # Добавлено
 
 
 class AnalyticsPage:
@@ -12,6 +18,7 @@ class AnalyticsPage:
             return self.chat_member_service.get_chats()
 
         self._load_chats = _load_chats
+        self._stats: List[Dict[str, Any]] = []
 
     def show(self):
         st.title("Telegram Group Stats")
@@ -41,25 +48,16 @@ class AnalyticsPage:
             st.warning("No members in this chat or failed to retrieve.")
             return
 
-        # 2) Создаём прогресс-бар (анализ участников)
-        progress_bar = st.progress(0, text="Analyzing chat members...")
+        if st.button("Analyze chat"):
+            self.analyze_chat(selected_chat)
 
-        def progress_callback(current_index: int, total_count: int) -> None:
-            """Колбэк для обновления прогресс-бара при анализе."""
-            progress_bar.progress(
-                current_index / total_count,
-                text=f"Analyzing member {current_index}/{total_count}...",
-            )
+        with st.expander("Members", expanded=True):
+            self.visualize_chat_members(self._stats)
 
-        # 3) Анализируем
-        stats = self.chat_member_service.get_users_common_chats_count_for_chat(
-            chat_id=selected_chat["id"], progress_callback=progress_callback
-        )
+        with st.expander("Graph", expanded=False):
+            self.visualize_graph(self._stats)
 
-        if stats is None:
-            st.error("Failed to get stats.")
-            return
-
+    def visualize_chat_members(self, stats: List[Dict[str, Any]]) -> None:
         sorted_stats = sorted(stats, key=lambda x: x["count"], reverse=True)
 
         beautify_stats = {
@@ -67,12 +65,12 @@ class AnalyticsPage:
             "username": "Username",
             "count": "Count of Common Chats",
         }
-        prepared_stats = [{beautify_stats[k]: v for k, v in s.items()} for s in sorted_stats]
-
+        prepared_stats = [{beautify_stats[k]: v for k, v in s.items() if k in beautify_stats} for s in sorted_stats]
+        # Добавляем "ID" для нумерации
         if len(prepared_stats) != 0:
-            st.success(f"Complete! Total members analyzed: {len(prepared_stats)}")
             for i, prep_stat in enumerate(prepared_stats):
                 prep_stat["ID"] = str(i + 1)
+            # Изменяем порядок столбцов для отображения ID
             st.dataframe(
                 prepared_stats,
                 column_order=[
@@ -84,3 +82,41 @@ class AnalyticsPage:
             )
         else:
             st.warning("No relevant members or no access.")
+
+    def analyze_chat(self, chat: Dict[str, Any]) -> None:
+        # Создаём прогресс-бар (анализ участников)
+        progress_bar = st.progress(0, text="Analyzing chat members...")
+
+        def progress_callback(current_index: int, total_count: int) -> None:
+            """Колбэк для обновления прогресс-бара при анализе."""
+
+            progress_text = f"Analyzing member {current_index}/{total_count - 1}..."  # -1 для исключения себя
+            progress_bar.progress(
+                current_index / total_count,
+                text=progress_text,
+            )
+            if current_index == total_count:
+                progress_bar.empty()
+
+        # Анализируем
+        response = self.chat_member_service.get_users_common_chats_count_for_chat(
+            chat_id=chat["id"], progress_callback=progress_callback
+        )
+
+        if response is None:
+            st.error("Failed to get stats.")
+            return
+
+        self._stats = response
+        st.success("Chat members analyzed.")
+
+    def visualize_graph(self, stats: List[Dict[str, Any]]):
+        with st.spinner("Generating graph..."):
+            graph_visualizer = GraphVisualizer(stats, self.chat_member_service)
+            graph_path = graph_visualizer.save_and_return_graph_html()
+            if graph_path and os.path.exists(graph_path):
+                HtmlFile = open(graph_path, "r", encoding="utf-8")
+                source_code = HtmlFile.read()
+                st.components.v1.html(source_code, height=600, scrolling=True)
+            else:
+                st.error("Failed to generate graph.")
