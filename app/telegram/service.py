@@ -1,6 +1,7 @@
 import time
 from typing import Any, Callable, Dict, List, Optional, Union
 
+import streamlit as st
 from loguru import logger
 
 from app.telegram.client import TDLibClient
@@ -140,6 +141,36 @@ class ChatMemberService:
             chats.append(chat)
         return chats
 
+    def get_supergroup_members(self, supergroup_id):
+        offset = 0
+        limit = 200  # Максимальное количество участников, которое можно получить за один запрос
+        all_members = []
+
+        while True:
+            response = self._send_and_wait_for_response(
+                {
+                    "@type": "getSupergroupMembers",
+                    "supergroup_id": supergroup_id,
+                    "filter": {"@type": "supergroupMembersFilterRecent"},  # Можно использовать другие фильтры
+                    "offset": offset,
+                    "limit": limit,
+                },
+                success_condition="chatMembers",
+            )
+
+            if response is None or "members" not in response:
+                break
+
+            members = response["members"]
+            all_members.extend(members)
+
+            if len(members) < limit:
+                # Достигнут конец списка участников
+                break
+            offset += len(members)
+
+        return all_members
+
     def get_chat_members(self, chat_id: int) -> Optional[List[Dict[str, Any]]]:
         """
         Retrieve all members from a basic group chat.
@@ -161,7 +192,8 @@ class ChatMemberService:
                 return None
             return full_info["members"]
         elif chat_info["type"]["@type"] == "chatTypeSupergroup":
-            ...
+            supergroup_id = chat_info["type"]["supergroup_id"]
+            return self.get_supergroup_members(supergroup_id)
         return None
 
     def get_common_groups_with_user(self, user_id: int) -> Optional[Dict[str, Any]]:
@@ -216,21 +248,33 @@ class ChatMemberService:
             return "@" + usernames[0]
         return None
 
-    def get_users_common_chats_count_for_chat(self, chat_id: int) -> Optional[List[Dict[str, Any]]]:
+    def get_users_common_chats_count_for_chat(
+        self, chat_id: int, show_progress: bool = False
+    ) -> Optional[List[Dict[str, Any]]]:
         """
         For each user in the specified chat, find how many common group chats are shared.
         If the user_id is the same as our own ID, skip or handle accordingly.
 
         :param chat_id: The ID of the group chat.
+        :param show_progress: Whether to show a progress bar.
         :return: A list of dictionaries of the form {"user_id": int, "count_of_common_chats": int}, or None on failure.
         """
-        members = self.get_chat_members(chat_id)
-        if members is None:
-            logger.error("Failed to get chat members.")
-            return None
+        with st.spinner("Retrieving chat members..."):  # TODO: separate streamlit and tdlib
+            members = self.get_chat_members(chat_id)
+            if members is None:
+                logger.error("Failed to get chat members.")
+                return None
 
         results = []
+        if show_progress:
+            progress_bar = st.progress(0, text="Analyzing chat members...")
+
         for member in members:
+            if show_progress:
+                member_index = members.index(member) + 1
+                progress_bar.progress(
+                    member_index / len(members), text=f"Analyzing chat member {member_index}/{len(members)}..."
+                )
             member_id = member.get("member_id", {})
             if member_id.get("@type") == "messageSenderUser":
                 user_id = member_id.get("user_id")
@@ -253,4 +297,6 @@ class ChatMemberService:
                 }
                 results.append(result_item)
 
+        if show_progress:
+            progress_bar.empty()
         return results

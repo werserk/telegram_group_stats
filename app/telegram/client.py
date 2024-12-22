@@ -4,11 +4,12 @@ import logging
 import time
 from typing import Any, Dict, Optional, Union
 
+from loguru import logger
+
 import app.telegram.functional as F
 from app.telegram.constants import AuthorizationState
 
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)  # Настройка уровня логирования
+logging.basicConfig(level=logging.INFO)  # Настройка уровня вшитого логирования
 
 
 class TDLibClient:

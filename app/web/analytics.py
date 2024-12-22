@@ -36,7 +36,9 @@ class AnalyticsPage:
 
         if st.button("Run Analysis"):
             with st.spinner("Analyzing..."):
-                stats = self.chat_member_service.get_users_common_chats_count_for_chat(selected_chat["id"])
+                stats = self.chat_member_service.get_users_common_chats_count_for_chat(
+                    selected_chat["id"], show_progress=True
+                )
                 if stats is None:
                     st.error("Failed to get stats.")
                 else:
