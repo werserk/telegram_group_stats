@@ -11,21 +11,18 @@ class AuthorizePage:
         st.title("Telegram Authorization")
 
         if "auth_state" not in st.session_state:
-            # Первый вызов авторизации
-            st.session_state["auth_state"] = self.td_client.login_step()
+            with st.spinner("Initializing..."):
+                for i in range(
+                    3
+                ):  # Здесь возможно обновление состояний и ключей, не требующих интерактива от пользователя
+                    st.session_state["auth_state"] = self.td_client.login_step()
+            st.rerun()
 
         current_state = st.session_state["auth_state"]
 
-        st.write(f"Current authorization state: `{current_state.value}`")
-
         if current_state == AuthorizationState.READY:
-            st.success("You are already authorized! Go to Analytics.")
+            st.success("You are authorized! Go to Analytics.")
             return
-
-        if st.button("Refresh State"):
-            # Обрабатываем все апдейты
-            st.session_state["auth_state"] = self.td_client.login_step()
-            st.rerun()
 
         # Отображаем поля ввода в зависимости от состояния
         if current_state == AuthorizationState.WAIT_PHONE_NUMBER:
@@ -44,6 +41,10 @@ class AuthorizePage:
             st.error("TDLib is closed. Restart the app or check logs.")
         elif current_state == AuthorizationState.WAIT_REGISTRATION:
             st.info("User registration is required. Implement registration steps if needed.")
+
+        if st.button("Refresh State"):
+            st.session_state["auth_state"] = self.td_client.login_step()
+            st.rerun()
 
     def _show_phone_input(self):
         phone_number = st.text_input("Enter your phone number:", value="", key="phone_input")
