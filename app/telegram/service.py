@@ -1,7 +1,6 @@
 import time
 from typing import Any, Callable, Dict, List, Optional, Union
 
-import streamlit as st
 from loguru import logger
 
 from app.telegram.client import TDLibClient
@@ -249,32 +248,28 @@ class ChatMemberService:
         return None
 
     def get_users_common_chats_count_for_chat(
-        self, chat_id: int, show_progress: bool = False
+        self, chat_id: int, progress_callback: Optional[Callable[[int, int], None]] = None
     ) -> Optional[List[Dict[str, Any]]]:
         """
         For each user in the specified chat, find how many common group chats are shared.
         If the user_id is the same as our own ID, skip or handle accordingly.
 
         :param chat_id: The ID of the group chat.
-        :param show_progress: Whether to show a progress bar.
+        :param progress_callback: An optional callback function that will be called periodically during the analysis.
         :return: A list of dictionaries of the form {"user_id": int, "count_of_common_chats": int}, or None on failure.
         """
-        with st.spinner("Retrieving chat members..."):  # TODO: separate streamlit and tdlib
-            members = self.get_chat_members(chat_id)
-            if members is None:
-                logger.error("Failed to get chat members.")
-                return None
+        members = self.get_chat_members(chat_id)
+        if members is None:
+            logger.error("Failed to get chat members.")
+            return None
 
         results = []
-        if show_progress:
-            progress_bar = st.progress(0, text="Analyzing chat members...")
 
         for member in members:
-            if show_progress:
+            if progress_callback is not None:
                 member_index = members.index(member) + 1
-                progress_bar.progress(
-                    member_index / len(members), text=f"Analyzing chat member {member_index}/{len(members)}..."
-                )
+                progress_callback(member_index, len(members))
+
             member_id = member.get("member_id", {})
             if member_id.get("@type") == "messageSenderUser":
                 user_id = member_id.get("user_id")
@@ -296,7 +291,4 @@ class ChatMemberService:
                     "count": len(chat_ids),
                 }
                 results.append(result_item)
-
-        if show_progress:
-            progress_bar.empty()
         return results
