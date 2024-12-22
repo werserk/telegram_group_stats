@@ -5,63 +5,46 @@ from dotenv import load_dotenv
 
 from app.telegram.client import TDLibClient
 from app.telegram.processor import ChatMemberService
+from app.web.analytics import AnalyticsPage
+from app.web.auth import AuthorizePage
 
 load_dotenv()
 
 
 @st.cache_resource
-def init_services():
-    api_id = os.getenv("API_ID")
-    api_hash = os.getenv("API_HASH")
-    tdlib_client = TDLibClient(api_id=api_id, api_hash=api_hash)
-    chat_member_service = ChatMemberService(tdlib_client)
-    return chat_member_service
+def init_tdlib_client() -> TDLibClient:
+    api_id = os.getenv("API_ID") or ""
+    api_hash = os.getenv("API_HASH") or ""
+    # Для примера шифровочный ключ "1234" — в реальном проекте берите из .env.
+    db_enc_key = os.getenv("DB_KEY", "1234")
+
+    # Инициализируем наш новый неблокирующий клиент
+    client = TDLibClient(
+        api_id=api_id,
+        api_hash=api_hash,
+        database_encryption_key=db_enc_key,
+        files_directory="tdlib",
+        verbosity_level=2,
+    )
+    return client
 
 
 def main():
-    st.title("Telegram Group Stats")
+    client = init_tdlib_client()
 
-    chat_member_service = init_services()
+    st.sidebar.title("Navigation")
+    page = st.sidebar.selectbox("Select page", ["Authorization", "Analytics"])
 
-    @st.cache_data
-    def load_chats():
-        return chat_member_service.get_chats()
-
-    chats = load_chats()
-    if chats is None or len(chats) == 0:
-        st.warning("No group chats found.")
-        st.stop()
-
-    search_query = st.text_input("Search group by name:")
-
-    if search_query:
-        filtered_chats = [c for c in chats if search_query.lower() in c["name"].lower()]
+    if page == "Authorization":
+        auth_page = AuthorizePage(client)
+        auth_page.show()
     else:
-        filtered_chats = chats
-
-    if not filtered_chats:
-        st.warning("No groups match the search query.")
-        st.stop()
-
-    selected_chat_name = st.selectbox("Select a group chat:", options=[chat["name"] for chat in filtered_chats])
-
-    selected_chat = next((c for c in filtered_chats if c["name"] == selected_chat_name), None)
-
-    if st.button("Run Analysis"):
-        with st.spinner("Analyzing..."):
-            stats = chat_member_service.get_users_common_chats_count_for_chat(selected_chat["id"])
-            if stats is None:
-                st.error("Failed to get stats.")
-                return
-            sorted_stats = sorted(stats, key=lambda x: x["count"], reverse=True)
-            st.success("Analysis completed!")
-            st.dataframe(
-                sorted_stats,
-                column_config={
-                    "name": "Name",
-                    "count": "Count",
-                },
-            )
+        if client.is_authorized():
+            service = ChatMemberService(client)
+            analytics_page = AnalyticsPage(service)
+            analytics_page.show()
+        else:
+            st.warning("Not authorized yet. Go to 'Authorization' first.")
 
 
 if __name__ == "__main__":

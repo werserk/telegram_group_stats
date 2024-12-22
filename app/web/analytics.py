@@ -1,0 +1,44 @@
+import streamlit as st
+
+from app.telegram.processor import ChatMemberService
+
+
+class AnalyticsPage:
+    def __init__(self, chat_member_service: ChatMemberService):
+        self.chat_member_service = chat_member_service
+
+    @staticmethod
+    @st.cache_data
+    def _load_chats(chat_member_service: ChatMemberService):
+        return chat_member_service.get_chats()
+
+    def show(self):
+        st.title("Telegram Group Stats")
+
+        chats = self._load_chats(self.chat_member_service)
+        if not chats:
+            st.warning("No group chats found.")
+            return
+
+        search_query = st.text_input("Search group by name:")
+        filtered_chats = [c for c in chats if search_query.lower() in c["name"].lower()] if search_query else chats
+
+        if not filtered_chats:
+            st.warning("No groups match the search query.")
+            return
+
+        selected_chat_name = st.selectbox(
+            "Select a group chat:",
+            options=[chat["name"] for chat in filtered_chats],
+        )
+        selected_chat = next((c for c in filtered_chats if c["name"] == selected_chat_name), None)
+
+        if st.button("Run Analysis"):
+            with st.spinner("Analyzing..."):
+                stats = self.chat_member_service.get_users_common_chats_count_for_chat(selected_chat["id"])
+                if stats is None:
+                    st.error("Failed to get stats.")
+                else:
+                    sorted_stats = sorted(stats, key=lambda x: x["count"], reverse=True)
+                    st.success("Analysis completed!")
+                    st.dataframe(sorted_stats)

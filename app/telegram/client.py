@@ -1,115 +1,248 @@
+import base64
+import enum
 import json
-import os
-import sys
+import logging
 import time
-from typing import Dict
+from typing import Any, Dict, Optional, Union
 
 from dotenv import load_dotenv
-from loguru import logger
 
-import app.telegram.functional as F
+import app.telegram.functional as F  # Ваши обёртки над tdjson/клиентом
 
-load_dotenv()
+logger = logging.getLogger(__name__)
+
+
+class AuthorizationState(enum.Enum):
+    NONE = None
+    WAIT_TDLIB_PARAMS = "authorizationStateWaitTdlibParameters"
+    WAIT_ENCRYPTION_KEY = "authorizationStateWaitEncryptionKey"
+    WAIT_PHONE_NUMBER = "authorizationStateWaitPhoneNumber"
+    WAIT_CODE = "authorizationStateWaitCode"
+    WAIT_PASSWORD = "authorizationStateWaitPassword"
+    WAIT_REGISTRATION = "authorizationStateWaitRegistration"  # вдруг пригодится
+    READY = "authorizationStateReady"
+    CLOSED = "authorizationStateClosed"
 
 
 class TDLibClient:
-    TDLIB_LOGGING_LEVEL = int(os.getenv("TDLIB_LOGGING_LEVEL", 2))
-    RECEIVE_LOOP_TIMEOUT = 5
-    AUTHORIZE_LOOP_TIMEOUT = 5
+    """
+    Простой, неблокирующий клиент для TDLib.
+    Использует пошаговую авторизацию, без бесконечных циклов и ввода через консоль.
+    """
 
-    def __init__(self, api_id: str, api_hash: str):
-        self.__api_id = api_id
-        self.__api_hash = api_hash
-        self._client_id = F.create_client_id()
-        self._set_verbosity_level(TDLibClient.TDLIB_LOGGING_LEVEL)
+    def __init__(
+        self,
+        api_id: str,
+        api_hash: str,
+        database_encryption_key: Union[str, bytes] = b"",
+        files_directory: str = "tdlib",
+        verbosity_level: int = 2,
+        use_test_dc: bool = False,
+        system_language_code: str = "en",
+        device_model: str = "Desktop",
+        system_version: str = "Unknown",
+        application_version: str = "1.0",
+        use_message_database: bool = True,
+        use_secret_chats: bool = False,
+    ) -> None:
+        load_dotenv()  # Если нужно подгружать .env
+
+        if isinstance(database_encryption_key, str):
+            database_encryption_key = database_encryption_key.encode()
+        # TDLib с 1.8.6 умеет принимать base64-encoded ключ
+        self._db_key_base64 = base64.b64encode(database_encryption_key).decode()
+
+        self._api_id = api_id
+        self._api_hash = api_hash
+        self._use_test_dc = use_test_dc
+        self._files_dir = files_directory
+        self._verbosity_level = verbosity_level
+
+        self._system_language_code = system_language_code
+        self._device_model = device_model
+        self._system_version = system_version
+        self._application_version = application_version
+        self._use_message_database = use_message_database
+        self._use_secret_chats = use_secret_chats
+
+        # Управление состояниями
+        self._authorization_state: AuthorizationState = AuthorizationState.NONE
         self._is_authorized = False
-        self._authorize()
-        time.sleep(TDLibClient.AUTHORIZE_LOOP_TIMEOUT)
 
-    def _set_verbosity_level(self, level: int):
-        self.execute({"@type": "setLogVerbosityLevel", "new_verbosity_level": level})
+        # ID клиента (созданный через ваш F.create_client_id())
+        self._client_id = F.create_client_id()
 
-    def _authorize(self):
+        # Сразу установим уровень логирования
+        self._set_verbosity_level(self._verbosity_level)
+
+    def _set_verbosity_level(self, level: int) -> None:
+        query = {
+            "@type": "setLogVerbosityLevel",
+            "new_verbosity_level": level,
+        }
+        self.execute(query)
+
+    def send(self, data: Dict[str, Any]) -> None:
+        """
+        Отправляет сырые данные в TDLib через F.send
+        """
+        packed = json.dumps(data).encode("utf-8")
+        F.send(self._client_id, packed)
+
+    def receive(self, timeout: float = 1.0) -> Optional[Dict[str, Any]]:
+        """
+        Однократный вызов F.receive. Возвращает update или None, если за timeout ничего не пришло.
+        """
+        response = F.receive(timeout)
+        if not response:
+            return None
+        decoded = json.loads(response.decode("utf-8"))
+        return decoded
+
+    def execute(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Синхронный вызов (execute).
+        """
+        packed = json.dumps(data).encode("utf-8")
+        result = F.execute(packed)
+        if result:
+            return json.loads(result.decode("utf-8"))
+        return {}
+
+    def get_authorization_state(self) -> AuthorizationState:
+        """
+        Посылаем getAuthorizationState и пытаемся один раз прочитать ответ.
+        Если получили updateAuthorizationState — обновляем self._authorization_state.
+        Возвращаем текущее состояние (или если ничего не пришло — старое).
+        """
         self.send({"@type": "getAuthorizationState"})
-        while not self._is_authorized:
-            event = self.receive()
-            if event:
-                self._handle_event(event)
-            else:
-                time.sleep(TDLibClient.AUTHORIZE_LOOP_TIMEOUT)
+        update = self.receive()
+        self._process_update(update)
+        return self._authorization_state
 
-    def _handle_event(self, event: Dict):
-        if event["@type"] == "updateAuthorizationState":
-            self._handle_auth_state(event["authorization_state"])
-        elif event["@type"] == "error":
-            if event["code"] == 420 and "FLOOD_WAIT" in event["message"]:
-                wait_time = int(event["message"].split("_")[-1])
-                logger.debug(f"Необходимо подождать {wait_time} секунд из-за ограничения запросов.")
-                if input("Ожидать? [y/n]") == "y":
-                    time.sleep(wait_time)
-                else:
-                    sys.exit()
-            else:
-                logger.error(f"Error: {event}")
+    def _process_update(self, update: Optional[Dict[str, Any]]) -> None:
+        """
+        Служебный метод. Если это updateAuthorizationState, обработаем.
+        Если это ошибка — залогируем. И так далее.
+        """
+        if not update:
+            return
 
-    def _handle_auth_state(self, auth_state: Dict):
-        auth_type = auth_state["@type"]
-        if auth_type == "authorizationStateWaitTdlibParameters":
+        if update["@type"] == "updateAuthorizationState":
+            new_state = update["authorization_state"]["@type"]
+            self._handle_authorization_state(new_state)
+
+        elif update["@type"] == "error":
+            logger.error(f"TDLib error: {update}")
+
+    def _handle_authorization_state(self, new_state_str: str) -> None:
+        """
+        Обновляет self._authorization_state, при необходимости выполняет действия:
+        - setTdlibParameters при WAIT_TDLIB_PARAMS
+        - checkDatabaseEncryptionKey при WAIT_ENCRYPTION_KEY
+        - выставляет self._is_authorized = True при READY
+        """
+        new_state = AuthorizationState(new_state_str)
+        self._authorization_state = new_state
+
+        if new_state == AuthorizationState.WAIT_TDLIB_PARAMS:
+            # Отправляем параметры
+            params_query = {
+                "@type": "setTdlibParameters",
+                "database_directory": self._files_dir,
+                "files_directory": self._files_dir,
+                "use_test_dc": self._use_test_dc,
+                "api_id": int(self._api_id),
+                "api_hash": self._api_hash,
+                "device_model": self._device_model,
+                "system_version": self._system_version,
+                "application_version": self._application_version,
+                "system_language_code": self._system_language_code,
+                "use_message_database": self._use_message_database,
+                "use_secret_chats": self._use_secret_chats,
+                # Для tdlib >= 1.8.6
+                "database_encryption_key": self._db_key_base64,
+            }
+            self.send(params_query)
+
+        elif new_state == AuthorizationState.WAIT_ENCRYPTION_KEY:
+            # Отправляем ключ
             self.send(
                 {
-                    "@type": "setTdlibParameters",
-                    "use_test_dc": False,
-                    "database_directory": "tdlib",
-                    "files_directory": "tdlib",
-                    "use_file_database": False,
-                    "use_chat_info_database": False,
-                    "use_message_database": False,
-                    "use_secret_chats": False,
-                    "api_id": self.__api_id,
-                    "api_hash": self.__api_hash,
-                    "system_language_code": "en",
-                    "device_model": "Desktop",
-                    "system_version": "Unknown",
-                    "application_version": "1.0",
-                    "enable_storage_optimizer": True,
-                    "ignore_file_names": False,
+                    "@type": "checkDatabaseEncryptionKey",
+                    "encryption_key": self._db_key_base64,
                 }
             )
-        elif auth_type == "authorizationStateWaitEncryptionKey":
-            self.send({"@type": "checkDatabaseEncryptionKey", "encryption_key": ""})
-        elif auth_type == "authorizationStateWaitPhoneNumber":
-            phone_number = input("Please enter your phone number: ")
-            self.send({"@type": "setAuthenticationPhoneNumber", "phone_number": phone_number})
-        elif auth_type == "authorizationStateWaitCode":
-            code = input("Please enter the authentication code you received: ")
-            self.send({"@type": "checkAuthenticationCode", "code": code})
-        elif auth_type == "authorizationStateWaitPassword":
-            password = input("Please enter your password: ")
-            self.send({"@type": "checkAuthenticationPassword", "password": password})
-        elif auth_type == "authorizationStateReady":
+
+        elif new_state == AuthorizationState.READY:
             self._is_authorized = True
-            logger.info("Authorization completed successfully!")
-        elif auth_type == "authorizationStateClosed":
-            logger.info("Authorization state closed")
+
+        elif new_state == AuthorizationState.CLOSED:
             self._is_authorized = False
-        else:
-            logger.error(f"Unhandled authorization state: {auth_state}")
 
-    @staticmethod
-    def execute(query: Dict) -> Dict:
-        query_json = json.dumps(query).encode("utf-8")
-        result = F.execute(query_json)
-        if result:
-            result = json.loads(result.decode("utf-8"))
-        return result
+    def login_step(self) -> AuthorizationState:
+        """
+        «Полушаг» авторизации: мы проверяем текущее состояние (getAuthorizationState),
+        если нужно — отправляем/обрабатываем update.
+        Возвращаем актуальное состояние (может быть READY, WAIT_PHONE_NUMBER и т.д.).
+        """
+        return self.get_authorization_state()
 
-    @staticmethod
-    def receive() -> Dict:
-        result = F.receive(TDLibClient.RECEIVE_LOOP_TIMEOUT)
-        if result:
-            result = json.loads(result.decode("utf-8"))
-        return result
+    def send_phone_number(self, phone_number: str) -> AuthorizationState:
+        """
+        Отправляем номер телефона (если мы в WAIT_PHONE_NUMBER).
+        После отправки, читаем update, возвращаем новое состояние.
+        """
+        query = {
+            "@type": "setAuthenticationPhoneNumber",
+            "phone_number": phone_number,
+            "allow_flash_call": False,
+            "is_current_phone_number": True,
+        }
+        self.send(query)
+        update = self.receive()
+        self._process_update(update)
+        return self._authorization_state
 
-    def send(self, query: Dict) -> None:
-        query_json = json.dumps(query).encode("utf-8")
-        F.send(self._client_id, query_json)
+    def send_code(self, code: str) -> AuthorizationState:
+        """
+        Отправляем код (если мы в WAIT_CODE).
+        """
+        query = {
+            "@type": "checkAuthenticationCode",
+            "code": code,
+        }
+        self.send(query)
+        update = self.receive()
+        self._process_update(update)
+        return self._authorization_state
+
+    def send_password(self, password: str) -> AuthorizationState:
+        """
+        Отправляем 2FA-пароль (если мы в WAIT_PASSWORD).
+        """
+        query = {
+            "@type": "checkAuthenticationPassword",
+            "password": password,
+        }
+        self.send(query)
+        update = self.receive()
+        self._process_update(update)
+        return self._authorization_state
+
+    def is_authorized(self) -> bool:
+        return self._is_authorized
+
+    def close(self) -> None:
+        """
+        Явно закрыть сессию. Уйдём в authorizationStateClosed.
+        """
+        self.send({"@type": "close"})
+        # Можем дождаться, пока state станет CLOSED
+        for _ in range(5):
+            if self._authorization_state == AuthorizationState.CLOSED:
+                break
+            update = self.receive()
+            self._process_update(update)
+            time.sleep(0.2)
+        logger.info("TDLib client closed.")
