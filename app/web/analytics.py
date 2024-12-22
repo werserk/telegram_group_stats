@@ -52,7 +52,18 @@ class AnalyticsPage:
 
                     prepared_stats = [{beautify_stats[k]: v for k, v in s.items()} for s in sorted_stats]
 
-                    st.success("Analysis completed!")
-                    st.dataframe(
-                        prepared_stats,
-                    )
+                    if len(prepared_stats) != 0:
+                        st.success(f"Complete! Total members analyzed: {len(prepared_stats)}")
+                        for i, prep_stat in enumerate(prepared_stats):
+                            prep_stat["ID"] = str(i + 1)
+                        st.dataframe(
+                            prepared_stats,
+                            column_order=[
+                                "ID",
+                                beautify_stats["username"],
+                                beautify_stats["name"],
+                                beautify_stats["count"],
+                            ],
+                        )
+                    else:
+                        st.warning("No member in group or does not have access.")
