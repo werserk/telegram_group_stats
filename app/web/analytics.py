@@ -41,5 +41,16 @@ class AnalyticsPage:
                     st.error("Failed to get stats.")
                 else:
                     sorted_stats = sorted(stats, key=lambda x: x["count"], reverse=True)
+
+                    beautify_stats = {
+                        "name": "Name",
+                        "username": "Username",
+                        "count": "Count of common chats",
+                    }
+
+                    prepared_stats = [{beautify_stats[k]: v for k, v in s.items()} for s in sorted_stats]
+
                     st.success("Analysis completed!")
-                    st.dataframe(sorted_stats)
+                    st.dataframe(
+                        prepared_stats,
+                    )

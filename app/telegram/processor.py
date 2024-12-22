@@ -194,6 +194,21 @@ class ChatMemberService:
         last_name = user.get("last_name", "")
         return f"{first_name} {last_name}"
 
+    def get_tag_by_user_id(self, user_id: int) -> Optional[str]:
+        """
+        Retrieve the username of a user by their ID.
+
+        :param user_id: The ID of the user.
+        :return: The username if found, None otherwise.
+        """
+        user = self._send_and_wait_for_response({"@type": "getUser", "user_id": user_id}, success_condition="user")
+        if user is None:
+            return None
+        usernames = user.get("usernames", {}).get("active_usernames", [])
+        if usernames:
+            return "@" + usernames[0]
+        return None
+
     def get_users_common_chats_count_for_chat(self, chat_id: int) -> Optional[List[Dict[str, Any]]]:
         """
         For each user in the specified chat, find how many common group chats are shared.
@@ -225,6 +240,7 @@ class ChatMemberService:
 
                 chat_ids = common_groups_response.get("chat_ids", [])
                 result_item = {
+                    "username": self.get_tag_by_user_id(user_id),
                     "name": self.get_name_by_user_id(user_id),
                     "count": len(chat_ids),
                 }
