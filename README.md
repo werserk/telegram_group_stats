@@ -25,7 +25,7 @@ a convenient Streamlit interface.
 - [ ] **Support for Supergroups/Channels:** Extend the logic to handle supergroups and channel members.
 - [ ] **Extended analytics:** Add more metrics (e.g., message counts, user activity levels, common interests).
 - [ ] **Build graph visualization:** Display group relationships in a graph.
-- [ ] **Authentication improvements:** Authorize using OAuth method.
+- [ ] **Authentication improvements:** Authorize using UI.
 - [ ] **Improved UI:** Add more features and improve the interface.
 
 ![demo.png](assets/demo.png)
