@@ -12,9 +12,7 @@ class AuthorizePage:
 
         if "auth_state" not in st.session_state:
             with st.spinner("Initializing..."):
-                for i in range(
-                    3
-                ):  # Здесь возможно обновление состояний и ключей, не требующих интерактива от пользователя
+                for i in range(3):  # Здесь возможно обновление состояний и ключей
                     st.session_state["auth_state"] = self.td_client.login_step()
             st.rerun()
 
