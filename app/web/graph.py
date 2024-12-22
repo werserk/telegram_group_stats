@@ -1,15 +1,16 @@
 # Filepath: app/web/graph.py
 
 import base64
+from typing import List
 
 from loguru import logger
 from pyvis.network import Network
 
-from app.telegram.service import ChatMemberService
+from app.telegram.service import ChatMemberService, UserInfo
 
 
 class GraphVisualizer:
-    def __init__(self, stats, service: ChatMemberService):
+    def __init__(self, stats: List[UserInfo], service: ChatMemberService):
         """
         Инициализирует визуализатор графа.
 
@@ -34,16 +35,16 @@ class GraphVisualizer:
 
         # Считаем количество соединений для каждой группы
         for user in self.stats:
-            for group_id in user.get("common_group_ids", []):
+            for group_id in user.common_group_ids:
                 if group_id in group_connection_counts:
                     group_connection_counts[group_id] += 1
                 else:
                     group_connection_counts[group_id] = 1
 
         for user in self.stats:
-            user_id = user["user_id"]
-            name = user["name"]
-            username = user["username"]
+            user_id = user.user_id
+            name = user.name
+            username = user.username
 
             # Получаем аватарку пользователя
             photo_bytes = self.service.get_user_profile_photo(user_id)
@@ -69,9 +70,9 @@ class GraphVisualizer:
                 },
                 shape="circularImage",
                 image=image_data,
-                size=60 + user.get("count", 0) * 2,
+                size=60 + user.count * 2,
                 font={
-                    "size": 40 + user.get("count", 0) * 2,  # Размер шрифта
+                    "size": 40 + user.count * 2,  # Размер шрифта
                     "face": "Tahoma",  # Тип шрифта
                     "color": "black",  # Цвет шрифта
                     "strokeWidth": 0,  # Толщина обводки текста
@@ -80,7 +81,7 @@ class GraphVisualizer:
             user_nodes[user_id] = user
 
             # Добавляем узлы групп и связи
-            for group_id in user.get("common_group_ids", []):
+            for group_id in user.common_group_ids:
                 if group_id not in group_nodes:
                     chat_info = self.service.get_chat_info_by_id(group_id)
                     if chat_info:

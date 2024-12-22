@@ -13,8 +13,8 @@ load_dotenv()
 
 @st.cache_resource
 def init_tdlib_client() -> TDLibClient:
-    api_id = os.getenv("API_ID") or ""
-    api_hash = os.getenv("API_HASH") or ""
+    api_id = os.getenv("API_ID", "")
+    api_hash = os.getenv("API_HASH", "")
     db_enc_key = os.getenv("DB_KEY", "")
 
     client = TDLibClient(
@@ -27,7 +27,7 @@ def init_tdlib_client() -> TDLibClient:
     return client
 
 
-def main():
+def main() -> None:
     client = init_tdlib_client()
 
     st.sidebar.title("Navigation")

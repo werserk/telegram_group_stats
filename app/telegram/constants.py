@@ -11,3 +11,17 @@ class AuthorizationState(Enum):
     WAIT_REGISTRATION = "authorizationStateWaitRegistration"
     READY = "authorizationStateReady"
     CLOSED = "authorizationStateClosed"
+
+
+class ChatType(Enum):
+    BASIC_GROUP = "chatTypeBasicGroup"
+    SUPERGROUP = "chatTypeSupergroup"
+    PRIVATE = "chatTypePrivate"
+
+
+# "Магические числа" и прочие константы
+RECEIVE_LOOP_TIMEOUT = 5
+MAX_COUNT_CHATS_RESPONSE = 100_000
+MAX_COUNT_MEMBERS_RESPONSE = 100_000
+COMMON_GROUPS_LIMIT = 100_000  # Используется в getGroupsInCommon
+DOWNLOAD_PRIORITY = 1

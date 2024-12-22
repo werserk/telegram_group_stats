@@ -5,8 +5,8 @@ from typing import Any, Dict, List
 
 import streamlit as st
 
-from app.telegram.service import ChatMemberService
-from app.web.graph import GraphVisualizer  # Добавлено
+from app.telegram.service import ChatMemberService, UserInfo
+from app.web.graph import GraphVisualizer
 
 
 class AnalyticsPage:
@@ -18,7 +18,7 @@ class AnalyticsPage:
             return self.chat_member_service.get_chats()
 
         self._load_chats = _load_chats
-        self._stats: List[Dict[str, Any]] = []
+        self._stats: List[UserInfo] = []
 
     def show(self):
         st.title("Telegram Group Stats")
@@ -57,15 +57,18 @@ class AnalyticsPage:
         with st.expander("Graph", expanded=False):
             self.visualize_graph(self._stats)
 
-    def visualize_chat_members(self, stats: List[Dict[str, Any]]) -> None:
-        sorted_stats = sorted(stats, key=lambda x: x["count"], reverse=True)
+    @staticmethod
+    def visualize_chat_members(stats: List[UserInfo]) -> None:
+        sorted_stats = sorted(stats, key=lambda x: x.count, reverse=True)
 
-        beautify_stats = {
-            "name": "Name",
-            "username": "Username",
-            "count": "Count of Common Chats",
-        }
-        prepared_stats = [{beautify_stats[k]: v for k, v in s.items() if k in beautify_stats} for s in sorted_stats]
+        prepared_stats = [
+            {
+                "Name": stat.name,
+                "Username": stat.username,
+                "Count of Common Chats": stat.count,
+            }
+            for stat in sorted_stats
+        ]
         # Добавляем "ID" для нумерации
         if len(prepared_stats) != 0:
             for i, prep_stat in enumerate(prepared_stats):
@@ -75,9 +78,9 @@ class AnalyticsPage:
                 prepared_stats,
                 column_order=[
                     "ID",
-                    beautify_stats["username"],
-                    beautify_stats["name"],
-                    beautify_stats["count"],
+                    "Username",
+                    "Name",
+                    "Count of Common Chats",
                 ],
             )
         else:
@@ -110,13 +113,13 @@ class AnalyticsPage:
         self._stats = response
         st.success("Chat members analyzed.")
 
-    def visualize_graph(self, stats: List[Dict[str, Any]]):
+    def visualize_graph(self, stats: List[UserInfo]):
         with st.spinner("Generating graph..."):
             graph_visualizer = GraphVisualizer(stats, self.chat_member_service)
             graph_path = graph_visualizer.save_and_return_graph_html()
             if graph_path and os.path.exists(graph_path):
-                HtmlFile = open(graph_path, "r", encoding="utf-8")
-                source_code = HtmlFile.read()
+                html_file = open(graph_path, "r", encoding="utf-8")
+                source_code = html_file.read()
                 st.components.v1.html(source_code, height=600, scrolling=True)
             else:
                 st.error("Failed to generate graph.")

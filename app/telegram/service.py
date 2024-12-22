@@ -1,153 +1,162 @@
-# Filepath: app/telegram/service.py
-
 import logging
 import time
+from dataclasses import dataclass, field
 from typing import Any, Callable, Dict, List, Optional, Union
 
 from loguru import logger
 
 from app.telegram.client import TDLibClient
+from app.telegram.constants import (
+    COMMON_GROUPS_LIMIT,
+    DOWNLOAD_PRIORITY,
+    MAX_COUNT_CHATS_RESPONSE,
+    RECEIVE_LOOP_TIMEOUT,
+    ChatType,
+)
 
 logging.basicConfig(level=logging.INFO)
 
 
+@dataclass
+class UserInfo:
+    """Контейнер данных о пользователе."""
+
+    user_id: int
+    username: Optional[str] = None
+    name: Optional[str] = None
+    count: int = 0
+    common_group_ids: List[int] = field(default_factory=list)
+
+
 class ChatMemberService:
-    RECEIVE_LOOP_TIMEOUT = 5
-    MAX_COUNT_CHATS_RESPONSE = 100000
-    MAX_COUNT_MEMBERS_RESPONSE = 100000
+    """
+    Сервис для работы с информацией о чатах и участниках (мемберах) в Telegram через TDLibClient.
+    """
 
-    def __init__(self, td_client: TDLibClient):
+    def __init__(self, td_client: TDLibClient) -> None:
         """
-        Initialize the ChatMemberService.
+        :param td_client: Экземпляр TDLibClient для отправки и приёма запросов в TDLib.
+        """
+        self._td_client = td_client
+        self._my_user_id: Optional[int] = self._init_my_user_id()
 
-        :param td_client: An instance of TDLibClient for sending and receiving requests.
-        """
-        self.td_client = td_client
-        self.__my_user_id = self.get_my_user_id()
+    @property
+    def my_user_id(self) -> Optional[int]:
+        """Геттер для идентификатора текущего пользователя."""
+        return self._my_user_id
 
-    def get_my_user_id(self) -> Optional[int]:
-        """
-        Retrieve the current user's ID and store it for future checks.
-
-        :return: The user ID of the current authenticated user, or None if failed.
-        """
+    def _init_my_user_id(self) -> Optional[int]:
+        """Первоначальный запрос к TDLib для получения своего user_id."""
         event = self._send_and_wait_for_response({"@type": "getMe"}, success_condition="user")
-        if event is None:
+        if not event:
             logger.error("Failed to retrieve current user info.")
             return None
         return event.get("id")
 
-    def get_user_id_by_username(self, username: str) -> Optional[int]:
-        """
-        Retrieve the user ID of a given username.
-
-        :param username: The username to retrieve the user ID for.
-        :return: The user ID of the user with the given username, or None if not found.
-        """
-        event = self._send_and_wait_for_response(
-            {"@type": "searchPublicChat", "username": username}, success_condition="chat"
-        )
-        if event is None:
-            logger.error(f"Failed to retrieve user ID for username: {username}")
-            return None
-        return event.get("id")
-
     def _send_and_wait_for_response(
-        self, request_data: Dict[str, Any], success_condition: Union[str, List[str], Callable[[Dict[str, Any]], bool]]
+        self,
+        request_data: Dict[str, Any],
+        success_condition: Union[str, List[str], Callable[[Dict[str, Any]], bool]],
+        timeout: float = RECEIVE_LOOP_TIMEOUT,
     ) -> Optional[Dict[str, Any]]:
         """
-        Sends a request and waits for a response that meets the success_condition.
+        Универсальный метод: отправляет запрос в TDLib и ожидает ответ, удовлетворя условию success_condition.
 
-        :param request_data: The request data to be sent through td_client.
-        :param success_condition: Can be a string (@type), a list of @types, or a callable that checks the event.
-        :return: The event dictionary if the condition is met, None otherwise.
+        :param request_data: Данные запроса, отправляемые в TDLib.
+        :param success_condition: Строка @type, список @type или функция для проверки события.
+        :param timeout: Таймаут в секундах между итерациями (по умолчанию см. constants).
+        :return: Словарь события, если условие выполнено; иначе None.
         """
-        condition: Callable[[Dict[str, Any]], bool]
 
-        if isinstance(success_condition, str):
-
-            def condition(event: Dict[str, Any]) -> bool:
+        def is_successful(event: Dict[str, Any]) -> bool:
+            if isinstance(success_condition, str):
                 return event.get("@type") == success_condition
-
-        elif isinstance(success_condition, list):
-
-            def condition(event: Dict[str, Any]) -> bool:
+            elif isinstance(success_condition, list):
                 return event.get("@type") in success_condition
+            elif callable(success_condition):
+                return success_condition(event)
+            return False
 
-        elif callable(success_condition):
-            condition = success_condition
-        else:
-            raise ValueError(
-                f"Invalid success_condition type: {type(success_condition)}. Accepted types: str, list, Callable"
-            )
-
-        self.td_client.send(request_data)
+        self._td_client.send(request_data)
 
         while True:
-            event = self.td_client.receive()
-            if event:
-                if event.get("@type") == "error":
-                    logger.error(f"Error: {event.get('message')}")
-                    return None
-                if condition(event):
-                    return event
-            else:
-                time.sleep(self.RECEIVE_LOOP_TIMEOUT)
+            event = self._td_client.receive()
+            if event is None:
+                time.sleep(timeout)
+                continue
+
+            if event.get("@type") == "error":
+                logger.error(f"TDLib error: {event.get('message')}")
+                return None
+
+            if is_successful(event):
+                return event
 
     def get_chat_id_by_username(self, username: str) -> Optional[int]:
-        """
-        Retrieve the chat ID for a given username.
-
-        :param username: The username of the public chat.
-        :return: The chat ID if found, None otherwise.
-        """
+        """Находит чат по публичному username."""
         event = self._send_and_wait_for_response(
             {"@type": "searchPublicChat", "username": username}, success_condition="chat"
         )
-        if event is not None:
-            return event["id"]
+        if event:
+            return event.get("id")
         return None
 
     def get_chat_info_by_id(self, chat_id: int) -> Optional[Dict[str, Any]]:
-        """
-        Retrieve chat information by its ID.
-
-        :param chat_id: The ID of the chat.
-        :return: A dictionary with chat information if found, None otherwise.
-        """
+        """Получает информацию о чате по ID."""
         return self._send_and_wait_for_response({"@type": "getChat", "chat_id": chat_id}, success_condition="chat")
 
-    def get_chats(self) -> Optional[List[Dict[str, Any]]]:
+    def get_chats(self) -> List[Dict[str, Any]]:
         """
-        Retrieve a list of all group chats.
-
-        :return: A list of dictionaries, each containing chat ID and title, or None if no chats are found.
+        Возвращает все доступные пользователю чаты (BASIC_GROUP или SUPERGROUP).
         """
         event = self._send_and_wait_for_response(
-            {"@type": "getChats", "limit": self.MAX_COUNT_CHATS_RESPONSE}, success_condition="chats"
+            {"@type": "getChats", "limit": MAX_COUNT_CHATS_RESPONSE}, success_condition="chats"
         )
-
         if event is None:
-            return None
+            return []
 
-        chat_ids = event["chat_ids"]
-        chats = []
-        for chat_id in chat_ids:
-            chat_info = self.get_chat_info_by_id(chat_id)
-            if chat_info is None:
+        chat_ids = event.get("chat_ids", [])
+        chats_info = []
+        for c_id in chat_ids:
+            info = self.get_chat_info_by_id(c_id)
+            if not info:
                 continue
-            chat_type = chat_info["type"]["@type"]
-            if chat_type not in ["chatTypeBasicGroup", "chatTypeSupergroup"]:
-                if chat_type != "chatTypePrivate":
-                    logger.warning(f" Unknown chat type: {chat_type} (Chat name: {chat_info['title']})")
+            ctype = info["type"]["@type"]
+            # Фильтрация типов чатов
+            if ctype not in (ChatType.BASIC_GROUP.value, ChatType.SUPERGROUP.value):
                 continue
-            chat = {"id": chat_id, "name": chat_info["title"]}
-            chats.append(chat)
-        return chats
+            chats_info.append({"id": c_id, "name": info.get("title", "Unknown")})
+        return chats_info
 
-    def get_supergroup_members(self, supergroup_id):
+    def get_chat_members(self, chat_id: int) -> List[Dict[str, Any]]:
+        """Возвращает участников чата (как для BASIC_GROUP, так и для SUPERGROUP)."""
+        chat_info = self.get_chat_info_by_id(chat_id)
+        if not chat_info:
+            logger.error(f"Failed to get chat info by ID {chat_id}")
+            return []
+
+        ctype = chat_info["type"]["@type"]
+        if ctype == ChatType.BASIC_GROUP.value:
+            return self._get_basic_group_members(chat_info)
+        elif ctype == ChatType.SUPERGROUP.value:
+            return self._get_supergroup_members(chat_info["type"]["supergroup_id"])
+        return []
+
+    def _get_basic_group_members(self, chat_info: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Частный метод для получения участников BASIC_GROUP."""
+        basic_group_id = chat_info["type"]["basic_group_id"]
+        full_info = self._send_and_wait_for_response(
+            {"@type": "getBasicGroupFullInfo", "basic_group_id": basic_group_id},
+            success_condition="basicGroupFullInfo",
+        )
+        if full_info is None:
+            return []
+        return full_info.get("members", [])
+
+    def _get_supergroup_members(self, supergroup_id: int) -> List[Dict[str, Any]]:
+        """Частный метод для получения участников SUPERGROUP."""
         offset = 0
-        limit = 200  # Максимальное количество участников, которое можно получить за один запрос
+        limit = 200
         all_members = []
 
         while True:
@@ -155,198 +164,144 @@ class ChatMemberService:
                 {
                     "@type": "getSupergroupMembers",
                     "supergroup_id": supergroup_id,
-                    "filter": {"@type": "supergroupMembersFilterRecent"},  # Можно использовать другие фильтры
+                    "filter": {"@type": "supergroupMembersFilterRecent"},
                     "offset": offset,
                     "limit": limit,
                 },
                 success_condition="chatMembers",
             )
-
-            if response is None or "members" not in response:
+            if not response or "members" not in response:
                 break
 
             members = response["members"]
             all_members.extend(members)
 
             if len(members) < limit:
-                # Достигнут конец списка участников
                 break
             offset += len(members)
 
         return all_members
 
-    def get_chat_members(self, chat_id: int) -> Optional[List[Dict[str, Any]]]:
+    def get_users_common_chats_count_for_chat(
+        self, chat_id: int, progress_callback: Optional[Callable[[int, int], None]] = None
+    ) -> Optional[List[UserInfo]]:
         """
-        Retrieve all members from a basic group chat.
+        Для каждого участника заданного чата считает, в скольких общих чатах (BASIC_GROUP/SUPERGROUP) он состоит с нами.
 
-        :param chat_id: The ID of the group chat.
-        :return: A list of member objects or None if unable to retrieve members.
+        :param chat_id: ID чата.
+        :param progress_callback: Функция обратного вызова для обновления прогресса, если нужно.
+        :return: Список UserInfo, или None при ошибке.
         """
-        chat_info = self.get_chat_info_by_id(chat_id)
-        if chat_info is None:
+        members = self.get_chat_members(chat_id)
+        if not members:
+            logger.error("Failed to get chat members.")
             return None
 
-        if chat_info["type"]["@type"] == "chatTypeBasicGroup":
-            basic_group_id = chat_info["type"]["basic_group_id"]
-            full_info = self._send_and_wait_for_response(
-                {"@type": "getBasicGroupFullInfo", "basic_group_id": basic_group_id},
-                success_condition="basicGroupFullInfo",
+        results: List[UserInfo] = []
+        total_members = len(members)
+
+        for index, member in enumerate(members, start=1):
+            if progress_callback:
+                progress_callback(index, total_members)
+
+            user_id = self._extract_user_id(member)
+            if user_id is None or user_id == self._my_user_id:
+                continue
+
+            common_groups_response = self._send_and_wait_for_response(
+                {
+                    "@type": "getGroupsInCommon",
+                    "user_id": user_id,
+                    "offset_chat_id": 0,
+                    "limit": COMMON_GROUPS_LIMIT,
+                },
+                success_condition="chats",
             )
-            if full_info is None:
-                return None
-            return full_info["members"]
-        elif chat_info["type"]["@type"] == "chatTypeSupergroup":
-            supergroup_id = chat_info["type"]["supergroup_id"]
-            return self.get_supergroup_members(supergroup_id)
+            if common_groups_response is None:
+                logger.error(f"Failed to get common groups for user_id: {user_id}")
+                continue
+
+            chat_ids = common_groups_response.get("chat_ids", [])
+            results.append(
+                UserInfo(
+                    user_id=user_id,
+                    username=self._get_tag_by_user_id(user_id),
+                    name=self._get_name_by_user_id(user_id),
+                    count=len(chat_ids),
+                    common_group_ids=chat_ids,
+                )
+            )
+        return results
+
+    def _extract_user_id(self, member: Dict[str, Any]) -> Optional[int]:
+        """
+        Вспомогательный метод, достающий user_id из member.
+        """
+        member_id = member.get("member_id", {})
+        if member_id.get("@type") == "messageSenderUser":
+            return member_id.get("user_id")
         return None
 
-    def get_common_groups_with_user(self, user_id: int) -> Optional[Dict[str, Any]]:
-        """
-        Retrieve all common groups with a specified user.
-
-        :param user_id: The user ID for which to find common groups.
-        :return: A dictionary containing common group IDs or None if the operation fails.
-        """
-        offset_chat_id = 0
-        response = self._send_and_wait_for_response(
-            {
-                "@type": "getGroupsInCommon",
-                "user_id": user_id,
-                "offset_chat_id": offset_chat_id,
-                "limit": self.MAX_COUNT_CHATS_RESPONSE,
-            },
-            success_condition="chats",
-        )
-
-        if response is None:
-            logger.error("Failed to get common groups")
-            return None
-        return response
-
-    def get_name_by_user_id(self, user_id: int) -> Optional[str]:
-        """
-        Retrieve the username of a user by their ID.
-
-        :param user_id: The ID of the user.
-        :return: The username if found, None otherwise.
-        """
+    def _get_name_by_user_id(self, user_id: int) -> Optional[str]:
+        """Возвращает first_name + last_name для user_id."""
         user = self._send_and_wait_for_response({"@type": "getUser", "user_id": user_id}, success_condition="user")
         if user is None:
             return None
         first_name = user.get("first_name", "")
         last_name = user.get("last_name", "")
-        return f"{first_name} {last_name}"
+        return f"{first_name} {last_name}".strip()
 
-    def get_tag_by_user_id(self, user_id: int) -> Optional[str]:
-        """
-        Retrieve the username of a user by their ID.
-
-        :param user_id: The ID of the user.
-        :return: The username if found, None otherwise.
-        """
+    def _get_tag_by_user_id(self, user_id: int) -> Optional[str]:
+        """Возвращает @username пользователя, если он есть."""
         user = self._send_and_wait_for_response({"@type": "getUser", "user_id": user_id}, success_condition="user")
         if user is None:
             return None
         usernames = user.get("usernames", {}).get("active_usernames", [])
-        if usernames:
-            return "@" + usernames[0]
-        return None
-
-    def get_users_common_chats_count_for_chat(
-        self, chat_id: int, progress_callback: Optional[Callable[[int, int], None]] = None
-    ) -> Optional[List[Dict[str, Any]]]:
-        """
-        For each user in the specified chat, find how many common group chats are shared.
-        If the user_id is the same as our own ID, skip or handle accordingly.
-
-        :param chat_id: The ID of the group chat.
-        :param progress_callback: An optional callback function that will be called periodically during the analysis.
-        :return: A list of dictionaries of the form {"user_id": int, "count_of_common_chats": int}, or None on failure.
-        """
-        members = self.get_chat_members(chat_id)
-        if members is None:
-            logger.error("Failed to get chat members.")
-            return None
-
-        results = []
-
-        for member in members:
-            if progress_callback is not None:
-                member_index = members.index(member) + 1
-                progress_callback(member_index, len(members))
-
-            member_id = member.get("member_id", {})
-            if member_id.get("@type") == "messageSenderUser":
-                user_id = member_id.get("user_id")
-                if user_id is None:
-                    continue
-
-                if user_id == self.__my_user_id:
-                    continue
-
-                common_groups_response = self.get_common_groups_with_user(user_id)
-                if common_groups_response is None:
-                    logger.error(f"Failed to get common groups for user_id: {user_id}")
-                    continue
-
-                chat_ids = common_groups_response.get("chat_ids", [])
-                result_item = {
-                    "user_id": user_id,  # Добавлено для удобства
-                    "username": self.get_tag_by_user_id(user_id),
-                    "name": self.get_name_by_user_id(user_id),
-                    "count": len(chat_ids),
-                    "common_group_ids": chat_ids,  # Сохраняем сами группы
-                }
-                results.append(result_item)
-        return results
+        return f"@{usernames[0]}" if usernames else None
 
     def get_user_profile_photo(self, user_id: int) -> Optional[bytes]:
         """
-        Retrieves the profile photo of a user.
-
-        :param user_id: The ID of the user.
-        :return: The binary data of the profile photo, or None if not found.
+        Возвращает фотографию профиля пользователя (small-версию), или None, если нет фото.
         """
         user_data = self._send_and_wait_for_response({"@type": "getUser", "user_id": user_id}, success_condition="user")
-        if user_data is None:
-            return None
-        profile_photo = user_data.get("profile_photo", {})
-        if not profile_photo:
+        if not user_data:
             return None
 
-        file_id = profile_photo.get("small", {}).get("id", None)
+        profile_photo = user_data.get("profile_photo", {})
+        file_id = profile_photo.get("small", {}).get("id")
         if file_id is None:
             return None
-        return self.download_file(file_id)
+
+        return self._download_file(file_id)
 
     def get_chat_photo(self, chat_info: Dict[str, Any]) -> Optional[bytes]:
         """
-        Retrieves the photo of a chat (group or supergroup).
-
-        :param chat_info: The chat info.
-        :return: The binary data of the chat photo, or None if not found.
+        Возвращает small-фото чата (группы/супергруппы), или None, если нет фото.
         """
-        if not chat_info:
+        if not chat_info or "photo" not in chat_info:
             return None
 
-        photo = chat_info.get("photo")
-        if not photo:
-            return None
-
-        file_id = photo.get("small", {}).get("id", None)
+        photo = chat_info["photo"]
+        file_id = photo.get("small", {}).get("id")
         if file_id is None:
             return None
-        return self.download_file(file_id)
+        return self._download_file(file_id)
 
-    def download_file(self, file_id: str) -> Optional[bytes]:
+    def _download_file(self, file_id: int) -> Optional[bytes]:
+        """Загружает файл по file_id и возвращает его содержимое в виде байтов."""
         file_response = self._send_and_wait_for_response(
-            {"@type": "downloadFile", "file_id": file_id, "priority": 1}, success_condition="file"
+            {"@type": "downloadFile", "file_id": file_id, "priority": DOWNLOAD_PRIORITY}, success_condition="file"
         )
-        if file_response and file_response.get("local", {}).get("path"):
-            local_path = file_response["local"]["path"]
-            try:
-                with open(local_path, "rb") as f:
-                    return f.read()
-            except Exception as e:
-                logger.error(f"Failed to read chat photo file: {e}")
-        return None
+        if not file_response:
+            return None
+
+        local_path = file_response.get("local", {}).get("path")
+        if not local_path:
+            return None
+
+        try:
+            with open(local_path, "rb") as f:
+                return f.read()
+        except OSError as e:
+            logger.error(f"Failed to read file {local_path}: {e}")
+            return None
