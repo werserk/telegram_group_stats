@@ -7,15 +7,16 @@ class AnalyticsPage:
     def __init__(self, chat_member_service: ChatMemberService):
         self.chat_member_service = chat_member_service
 
-    @staticmethod
-    @st.cache_data
-    def _load_chats(chat_member_service: ChatMemberService):
-        return chat_member_service.get_chats()
+        @st.cache_data
+        def _load_chats():
+            return self.chat_member_service.get_chats()
+
+        self._load_chats = _load_chats
 
     def show(self):
         st.title("Telegram Group Stats")
 
-        chats = self._load_chats(self.chat_member_service)
+        chats = self._load_chats()
         if not chats:
             st.warning("No group chats found.")
             return
