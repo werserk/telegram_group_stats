@@ -107,7 +107,7 @@ class GraphVisualizer:
                         size=group_size,
                         font={
                             "size": 60 + group_connection_counts.get(group_id, 0) * 2,  # Размер шрифта
-                            "face": "Tahoma",  # Тип шрифта
+                            "face": "Sans-Serif",  # Тип шрифта
                             "color": "black",  # Цвет шрифта
                             "strokeWidth": 0,  # Толщина обводки текста
                         },
@@ -121,7 +121,7 @@ class GraphVisualizer:
                         "color": "gray",  # Основной цвет ребра
                         "highlight": "orange",  # Цвет подсветки ребра
                     },
-                    width=2,
+                    width=5,
                 )
 
         return net
