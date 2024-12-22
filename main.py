@@ -15,10 +15,8 @@ load_dotenv()
 def init_tdlib_client() -> TDLibClient:
     api_id = os.getenv("API_ID") or ""
     api_hash = os.getenv("API_HASH") or ""
-    # Для примера шифровочный ключ "1234" — в реальном проекте берите из .env.
-    db_enc_key = os.getenv("DB_KEY", "1234")
+    db_enc_key = os.getenv("DB_KEY", "")
 
-    # Инициализируем наш новый неблокирующий клиент
     client = TDLibClient(
         api_id=api_id,
         api_hash=api_hash,
