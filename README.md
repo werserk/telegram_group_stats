@@ -22,7 +22,7 @@ a convenient Streamlit interface.
 - [x] **Common group analysis:** Calculates how many groups each user shares with you.
 - [x] **Streamlit UI:** Provides an interactive interface to search groups and run analysis.
 - [x] **Write basic tests:** Write basic tests to ensure the application works as expected.
-- [ ] **Support for Supergroups/Channels:** Extend the logic to handle supergroups and channel members.
+- [x] **Support for Supergroups/Channels:** Extend the logic to handle supergroups and channel members.
 - [ ] **Extended analytics:** Add more metrics (e.g., message counts, user activity levels, common interests).
 - [ ] **Build graph visualization:** Display group relationships in a graph.
 - [x] **Authentication improvements:** Authorize using UI.
