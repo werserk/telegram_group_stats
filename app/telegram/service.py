@@ -132,7 +132,9 @@ class ChatMemberService:
             if chat_info is None:
                 continue
             chat_type = chat_info["type"]["@type"]
-            if chat_type != "chatTypeBasicGroup":
+            if chat_type not in ["chatTypeBasicGroup", "chatTypeSupergroup"]:
+                if chat_type != "chatTypePrivate":
+                    logger.warning(f" Unknown chat type: {chat_type} (Chat name: {chat_info['title']})")
                 continue
             chat = {"id": chat_id, "name": chat_info["title"]}
             chats.append(chat)
@@ -149,13 +151,18 @@ class ChatMemberService:
         if chat_info is None:
             return None
 
-        basic_group_id = chat_info["type"]["basic_group_id"]
-        full_info = self._send_and_wait_for_response(
-            {"@type": "getBasicGroupFullInfo", "basic_group_id": basic_group_id}, success_condition="basicGroupFullInfo"
-        )
-        if full_info is None:
-            return None
-        return full_info["members"]
+        if chat_info["type"]["@type"] == "chatTypeBasicGroup":
+            basic_group_id = chat_info["type"]["basic_group_id"]
+            full_info = self._send_and_wait_for_response(
+                {"@type": "getBasicGroupFullInfo", "basic_group_id": basic_group_id},
+                success_condition="basicGroupFullInfo",
+            )
+            if full_info is None:
+                return None
+            return full_info["members"]
+        elif chat_info["type"]["@type"] == "chatTypeSupergroup":
+            ...
+        return None
 
     def get_common_groups_with_user(self, user_id: int) -> Optional[Dict[str, Any]]:
         """

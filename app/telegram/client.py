@@ -8,7 +8,7 @@ import app.telegram.functional as F
 from app.telegram.constants import AuthorizationState
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.DEBUG)  # Настройка уровня логирования
+logging.basicConfig(level=logging.INFO)  # Настройка уровня логирования
 
 
 class TDLibClient:
