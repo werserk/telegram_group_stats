@@ -1,6 +1,8 @@
 import base64
 import json
 import logging
+import os
+import shutil
 import time
 from typing import Any, Dict, Optional, Union
 
@@ -31,6 +33,8 @@ class TDLibClient:
     ) -> None:
         if isinstance(database_encryption_key, str):
             database_encryption_key = database_encryption_key.encode()
+        os.makedirs(files_directory, exist_ok=True)
+
         self._db_key_base64: str = base64.b64encode(database_encryption_key).decode()
         self._api_id = api_id
         self._api_hash = api_hash
@@ -160,6 +164,8 @@ class TDLibClient:
             update = self.receive(timeout=0.2)
             if update:
                 self._process_update(update)
+        shutil.rmtree(self._files_dir)
+        os.makedirs(self._files_dir, exist_ok=True)
         logger.info("TDLib client closed")
 
     def _send_params(self) -> None:

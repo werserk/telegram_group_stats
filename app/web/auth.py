@@ -1,4 +1,5 @@
 import streamlit as st
+from loguru import logger
 
 from app.constants import KEY_AUTH_STATE, REPEAT_AUTH_REQUEST_COUNT
 from app.telegram.client import AuthorizationState, TDLibClient
@@ -35,9 +36,14 @@ class AuthorizePage:
             st.error("TDLib is closed.")
         elif current_state == AuthorizationState.WAIT_REGISTRATION:
             st.info("User registration required.")
+        elif current_state == AuthorizationState.WAIT_CLOSING:
+            st.info("TDLib is closing. Press Refresh.")
+        elif current_state == AuthorizationState.CLOSED:
+            st.error("TDLib is closed. Press Refresh.")
 
         if st.button("Refresh State"):
             st.session_state[KEY_AUTH_STATE] = self.td_client.login_step()
+            logger.info(f"Authorization state refreshed: {st.session_state[KEY_AUTH_STATE]}")
             st.rerun()
 
     def _show_phone_input(self):

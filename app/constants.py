@@ -9,6 +9,7 @@ class AuthorizationState(Enum):
     WAIT_CODE = "authorizationStateWaitCode"
     WAIT_PASSWORD = "authorizationStateWaitPassword"
     WAIT_REGISTRATION = "authorizationStateWaitRegistration"
+    WAIT_CLOSING = "authorizationStateClosing"
     READY = "authorizationStateReady"
     CLOSED = "authorizationStateClosed"
 
