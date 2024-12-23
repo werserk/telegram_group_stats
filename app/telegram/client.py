@@ -6,11 +6,12 @@ import shutil
 import time
 from typing import Any, Dict, Optional, Union
 
+from loguru import logger
+
 import app.telegram.functional as F
 from app.constants import LOGIN_REPEAT_REQUEST_COUNT, AuthorizationState
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
+logging.basicConfig(level=logging.INFO)  # Set basic logging level
 
 
 class TDLibClient:

@@ -15,7 +15,7 @@ from app.constants import (
 )
 from app.telegram.client import TDLibClient
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.INFO)  # Set basic logging level
 
 
 @dataclass
