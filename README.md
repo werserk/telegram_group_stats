@@ -11,7 +11,7 @@ a convenient Streamlit interface.
 ## Links
 
 - [GitHub](https://github.com/werserk/telegram_group_stats)
-- [VideoDemo](https://drive.google.com/file/d/1bnfRz6lTo-szwSJitRH16emSjPoy-fiH/view?usp=sharing)
+- [VideoDemo](https://drive.google.com/file/d/1bnfRz6lTo-szwSJitRH16emSjPoy-fiH/view?usp=sharing) (old version)
 - tg: [@werserk](https://t.me/werserk)
 
 ## Overview
