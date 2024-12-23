@@ -19,7 +19,6 @@
 - [Usage](#usage)
 - [Testing](#testing)
 - [Development](#development)
-- [Contributing](#contributing)
 - [License](#license)
 - [Contact](#contact)
 
