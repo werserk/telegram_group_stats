@@ -1,4 +1,4 @@
-![telegram.png](assets/telegram.png)
+![telegram.png](assets/images/telegram.png)
 
 # Telegram Group Stats
 
@@ -27,7 +27,8 @@ a convenient Streamlit interface.
 - [x] **Authentication improvements:** Authorize using UI.
 - [x] **Improved UI:** Add more features and improve the interface.
 
-![demo.png](assets/demo.png)
+![img.png](assets/images/img.png)
+![img_1.png](assets/images/img_1.png)
 
 ## Tech overview
 
